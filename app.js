@@ -155,11 +155,12 @@ function createStationCard(station) {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-/** Format an ISO timestamp into a short, human-friendly string. */
+/** Format an ISO timestamp into a short, human-friendly string in German time. */
 function formatTimestamp(isoString) {
   try {
     const date = new Date(isoString);
     return date.toLocaleString("en-GB", {
+      timeZone: "Europe/Berlin",
       day: "2-digit",
       month: "short",
       year: "numeric",
