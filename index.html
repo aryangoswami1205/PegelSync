@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SerHydroSys — Real-time flood risk monitoring for German rivers.">
+  <title>SerHydroSys — Flood Risk Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="site-header">
+    <div class="header-inner">
+      <div class="logo-group">
+        <span class="logo-icon">🌊</span>
+        <div>
+          <h1 id="site-title">SerHydroSys</h1>
+          <p class="tagline">Serverless Hydrological Flood Risk Alert System</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span id="connection-indicator" class="indicator indicator--loading">
+          <span class="indicator-dot"></span>
+          <span class="indicator-label">Connecting…</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section id="summary-bar" class="glass-panel">
+      <div class="summary-item">
+        <span class="summary-value" id="summary-stations">—</span>
+        <span class="summary-label">Stations Monitored</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-value" id="summary-alerts">—</span>
+        <span class="summary-label">Active Alerts</span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <span class="summary-value" id="summary-updated">—</span>
+        <span class="summary-label">Last Updated</span>
+      </div>
+    </section>
+
+    <section id="station-cards" class="cards-grid">
+      <div class="loading-state" id="loading-state">
+        <div class="spinner"></div>
+        <p>Fetching latest station data…</p>
+      </div>
+    </section>
+
+    <section id="cors-info" class="glass-panel info-panel">
+      <h2>📡 How This Dashboard Works</h2>
+      <p>Every hour, an <strong>AWS Lambda</strong> function fetches live river data from Germany's PEGELONLINE API and saves a <code>latest_status.json</code> file to an <strong>S3 bucket</strong>. This dashboard uses <code>fetch()</code> to read that JSON and display the results.</p>
+      <p>For this to work, the S3 bucket needs <strong>CORS (Cross-Origin Resource Sharing)</strong> enabled — otherwise the browser blocks the request because the dashboard's domain differs from the S3 domain.</p>
+    </section>
+  </main>
+
+  <footer id="site-footer">
+    <p>Built by <strong>Aryan Goswami</strong> · Serverless on AWS · <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

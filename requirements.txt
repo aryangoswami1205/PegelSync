@@ -1,3 +1,0 @@
-# SerHydroSys — Python Dependencies
-# boto3 is pre-installed in Lambda; only needed for local testing.
-boto3>=1.34.0
