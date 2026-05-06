@@ -360,21 +360,81 @@ code { background: rgba(148,163,184,0.1); padding: 2px 6px; border-radius: 4px; 
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Info Panel ────────────────────────────────────────────────── */
-.info-panel h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: 0.75rem;
+/* ── Architecture Section ──────────────────────────────────────── */
+.architecture-section {
+  margin-top: 1rem;
 }
 
-.info-panel p {
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  color: var(--text-primary);
+}
+
+.arch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  padding: 3rem 2rem;
+}
+
+.arch-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 1rem;
+  position: relative;
+}
+
+/* Optional vertical dividers between cards on desktop */
+.arch-card:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -0.75rem;
+  top: 10%;
+  height: 80%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--border-subtle), transparent);
+}
+
+.arch-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.02);
+}
+
+.arch-icon-wrapper--ingestion { color: #a78bfa; }
+.arch-icon-wrapper--lambda { color: #38bdf8; }
+.arch-icon-wrapper--ui { color: #4ade80; }
+
+.arch-icon {
+  width: 28px;
+  height: 28px;
+  opacity: 0.9;
+}
+
+.arch-card h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.2px;
+}
+
+.arch-card p {
   font-size: 0.85rem;
   color: var(--text-secondary);
-  line-height: 1.7;
-  margin-bottom: 0.5rem;
+  line-height: 1.6;
 }
-
-.info-panel p:last-child { margin-bottom: 0; }
 
 /* ── Footer ────────────────────────────────────────────────────── */
 #site-footer {
@@ -395,4 +455,11 @@ code { background: rgba(148,163,184,0.1); padding: 2px 6px; border-radius: 4px; 
   #summary-bar { gap: 1rem; }
   .water-value { font-size: 2rem; }
   .cards-grid { grid-template-columns: 1fr; }
+  
+  .arch-grid { 
+    grid-template-columns: 1fr;
+    padding: 2rem 1.5rem;
+    gap: 2.5rem;
+  }
+  .arch-card:not(:last-child)::after { display: none; }
 }
