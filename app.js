@@ -33,30 +33,19 @@ async function fetchStationData() {
   setConnectionStatus("loading");
 
   try {
-    // Fetch the JSON file from S3.
-    // The `cache: "no-cache"` option tells the browser to revalidate
-    // with the server instead of serving stale data from disk cache.
     const response = await fetch(S3_STATUS_URL, { cache: "no-cache" });
 
-    // If the HTTP status is not 2xx, throw an error.
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Parse the JSON body into a JavaScript object.
     const data = await response.json();
-
-    // Render the data to the dashboard.
     renderDashboard(data);
-
-    // Update the connection indicator.
     setConnectionStatus("live");
   } catch (error) {
     console.error("Failed to fetch station data:", error);
     setConnectionStatus("error");
 
-    // If this is the first load (loading spinner is showing),
-    // replace it with a user-friendly error message.
     if (loadingState) {
       loadingState.innerHTML = `
         <p style="color: var(--accent-alert);">
@@ -113,16 +102,13 @@ function createStationCard(station) {
     card.classList.add("card--safe");
   }
 
-  // Calculate the fill percentage for the threshold bar.
   const level = station.water_level_m;
   const threshold = station.threshold_m;
   const pct = level != null ? Math.min((level / threshold) * 100, 100) : 0;
   const fillClass = pct >= 100 ? "threshold-fill--alert" : "";
 
-  // Format the water level display.
   const levelDisplay = level != null ? level.toFixed(2) : "—";
 
-  // Format the measurement timestamp.
   const timeDisplay = station.measurement_timestamp
     ? formatTimestamp(station.measurement_timestamp)
     : "N/A";
