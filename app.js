@@ -2,8 +2,9 @@
  * SerHydroSys — Dashboard App
  * ============================
  * Fetches `latest_status.json` from the public S3 bucket and renders
- * live station cards with water-level gauges, status badges, and a
- * summary bar.
+ * live station cards with water-level gauges, status badges, a
+ * summary bar, an interactive Leaflet map with cross-highlighting,
+ * and a client-side CSV report export.
  */
 
 // ── Configuration ──────────────────────────────────────────────────
@@ -27,6 +28,36 @@ const summaryStations = document.getElementById("summary-stations");
 const summaryAlerts = document.getElementById("summary-alerts");
 const summaryUpdated = document.getElementById("summary-updated");
 const connectionIndicator = document.getElementById("connection-indicator");
+const exportBtn = document.getElementById("export-report-btn");
+
+// ── Map State ──────────────────────────────────────────────────────
+let map = null;
+const markerRegistry = {}; // station_id → { marker, popup }
+
+// ── Cached Data (for export) ───────────────────────────────────────
+let lastFetchedData = null;
+
+// ── Initialise the Leaflet Map ─────────────────────────────────────
+function initMap() {
+  map = L.map("station-map", {
+    center: [51.0, 10.5], // Approximate centre of Germany
+    zoom: 6,
+    zoomControl: true,
+    attributionControl: true,
+    scrollWheelZoom: true,
+  });
+
+  // CartoDB Dark Matter — clean dark-mode tile layer
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 19,
+    }
+  ).addTo(map);
+}
 
 // ── Main Fetch Function ────────────────────────────────────────────
 async function fetchStationData() {
@@ -40,7 +71,9 @@ async function fetchStationData() {
     }
 
     const data = await response.json();
+    lastFetchedData = data;
     renderDashboard(data);
+    renderMapMarkers(data.stations || []);
     setConnectionStatus("live");
   } catch (error) {
     console.error("Failed to fetch station data:", error);
@@ -90,6 +123,7 @@ function renderDashboard(data) {
 function createStationCard(station) {
   const card = document.createElement("article");
   card.className = "station-card";
+  card.dataset.stationId = station.station_id;
 
   const statusLower = (station.status || "safe").toLowerCase();
 
@@ -136,7 +170,192 @@ function createStationCard(station) {
     </div>
   `;
 
+  // ── Cross-highlighting: Card → Map ───────────────────────────────
+  card.addEventListener("mouseenter", () => {
+    const entry = markerRegistry[station.station_id];
+    if (entry) {
+      entry.popup.openOn(map);
+      entry.marker.setStyle({ weight: 4, fillOpacity: 1 });
+    }
+  });
+
+  card.addEventListener("mouseleave", () => {
+    const entry = markerRegistry[station.station_id];
+    if (entry) {
+      map.closePopup();
+      entry.marker.setStyle({ weight: 2, fillOpacity: 0.85 });
+    }
+  });
+
   return card;
+}
+
+// ── Render Map Markers ─────────────────────────────────────────────
+function renderMapMarkers(stations) {
+  // Clear previous markers
+  Object.values(markerRegistry).forEach(({ marker }) => {
+    map.removeLayer(marker);
+  });
+  for (const key of Object.keys(markerRegistry)) {
+    delete markerRegistry[key];
+  }
+
+  const bounds = [];
+
+  stations.forEach(station => {
+    const lat = station.lat;
+    const lon = station.lon;
+    if (lat == null || lon == null) return;
+
+    const isAlert = station.status === "ALERT";
+    const isError = station.status === "ERROR";
+
+    const markerColor = isAlert
+      ? "#f87171"
+      : isError
+        ? "#fbbf24"
+        : "#22d3ee";
+
+    const marker = L.circleMarker([lat, lon], {
+      radius: isAlert ? 10 : 8,
+      fillColor: markerColor,
+      color: markerColor,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.85,
+      className: isAlert ? "leaflet-marker--alert" : "",
+    }).addTo(map);
+
+    // Popup content
+    const levelStr =
+      station.water_level_m != null
+        ? station.water_level_m.toFixed(2) + " m"
+        : "N/A";
+
+    const statusClass = isAlert ? "alert" : "safe";
+
+    const popup = L.popup({ closeButton: false, offset: [0, -6] }).setContent(`
+      <div class="popup-title">${station.label}</div>
+      <div class="popup-level ${statusClass}">${levelStr}</div>
+      <div class="popup-meta">Threshold: ${station.threshold_m.toFixed(2)} m · ${station.status}</div>
+    `);
+
+    marker.bindPopup(popup);
+
+    // ── Cross-highlighting: Map → Card ─────────────────────────────
+    marker.on("mouseover", () => {
+      marker.openPopup();
+      marker.setStyle({ weight: 4, fillOpacity: 1 });
+      highlightCard(station.station_id, true);
+    });
+
+    marker.on("mouseout", () => {
+      marker.closePopup();
+      marker.setStyle({ weight: 2, fillOpacity: 0.85 });
+      highlightCard(station.station_id, false);
+    });
+
+    markerRegistry[station.station_id] = { marker, popup };
+    bounds.push([lat, lon]);
+  });
+
+  // Fit map to show all markers with padding
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 7 });
+  }
+}
+
+// ── Cross-Highlight Helpers ────────────────────────────────────────
+
+/** Add or remove the glow highlight class on a station card. */
+function highlightCard(stationId, active) {
+  const card = cardsContainer.querySelector(
+    `[data-station-id="${stationId}"]`
+  );
+  if (!card) return;
+
+  if (active) {
+    card.classList.add("station-card--highlight");
+    card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else {
+    card.classList.remove("station-card--highlight");
+  }
+}
+
+// ── Export Report ──────────────────────────────────────────────────
+
+/**
+ * Generate a CSV report from the current station data and trigger
+ * a browser download using the Blob API. No backend required.
+ */
+function exportReport() {
+  if (!lastFetchedData || !lastFetchedData.stations) {
+    alert("No station data available yet. Please wait for data to load.");
+    return;
+  }
+
+  const stations = lastFetchedData.stations;
+  const generatedAt = lastFetchedData.generated_at || new Date().toISOString();
+
+  // CSV header
+  const headers = [
+    "Report Timestamp",
+    "Station",
+    "Station ID",
+    "River",
+    "Latitude",
+    "Longitude",
+    "Current Level (m)",
+    "Threshold (m)",
+    "Level %",
+    "Status",
+    "Measurement Timestamp",
+  ];
+
+  // CSV rows
+  const rows = stations.map(s => {
+    // Extract the river name from the label, e.g. "Cologne (Rhine)" → "Rhine"
+    const riverMatch = s.label.match(/\(([^)]+)\)/);
+    const river = riverMatch ? riverMatch[1] : "—";
+
+    const level = s.water_level_m != null ? s.water_level_m.toFixed(2) : "N/A";
+    const threshold = s.threshold_m.toFixed(2);
+    const pct =
+      s.water_level_m != null
+        ? ((s.water_level_m / s.threshold_m) * 100).toFixed(1) + "%"
+        : "N/A";
+
+    return [
+      generatedAt,
+      `"${s.label}"`,
+      s.station_id,
+      river,
+      s.lat ?? "",
+      s.lon ?? "",
+      level,
+      threshold,
+      pct,
+      s.status,
+      s.measurement_timestamp || "N/A",
+    ].join(",");
+  });
+
+  const csvContent = [headers.join(","), ...rows].join("\n");
+
+  // Create and trigger download
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  const dateSlug = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  link.href = url;
+  link.download = `SerHydroSys_Report_${dateSlug}.csv`;
+  link.style.display = "none";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -188,6 +407,12 @@ function setConnectionStatus(status) {
 }
 
 // ── Initialise ─────────────────────────────────────────────────────
+
+// Initialise the Leaflet map.
+initMap();
+
+// Wire up the Export Report button.
+exportBtn.addEventListener("click", exportReport);
 
 // Fetch data immediately on page load.
 fetchStationData();

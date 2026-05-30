@@ -1,15 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SerHydroSys — Real-time flood risk monitoring for German rivers.">
+  <meta name="description" content="SerHydroSys — Real-time flood risk monitoring for German rivers with interactive WebGIS map.">
   <title>SerHydroSys — Flood Risk Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet.js CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <header id="site-header">
     <div class="header-inner">
@@ -20,7 +27,16 @@
           <p class="tagline">Serverless Hydrological Flood Risk Alert System</p>
         </div>
       </div>
-      <div class="header-meta">
+      <div class="header-actions">
+        <button id="export-report-btn" class="btn-export" type="button" aria-label="Download current status report">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export Report
+        </button>
         <span id="connection-indicator" class="indicator indicator--loading">
           <span class="indicator-dot"></span>
           <span class="indicator-label">Connecting…</span>
@@ -47,6 +63,15 @@
       </div>
     </section>
 
+    <!-- WebGIS Map -->
+    <section id="map-section" class="glass-panel map-panel">
+      <div class="map-header">
+        <h2 class="section-title">Station Map</h2>
+        <span class="map-subtitle">Hover a pin to highlight its card · hover a card to focus its pin</span>
+      </div>
+      <div id="station-map"></div>
+    </section>
+
     <section id="station-cards" class="cards-grid">
       <div class="loading-state" id="loading-state">
         <div class="spinner"></div>
@@ -54,17 +79,68 @@
       </div>
     </section>
 
-    <section id="cors-info" class="glass-panel info-panel">
-      <h2>📡 How This Dashboard Works</h2>
-      <p>Every hour, an <strong>AWS Lambda</strong> function fetches live river data from Germany's PEGELONLINE API and saves a <code>latest_status.json</code> file to an <strong>S3 bucket</strong>. This dashboard uses <code>fetch()</code> to read that JSON and display the results.</p>
-      <p>For this to work, the S3 bucket needs <strong>CORS (Cross-Origin Resource Sharing)</strong> enabled — otherwise the browser blocks the request because the dashboard's domain differs from the S3 domain.</p>
+    <section id="architecture-panel" class="architecture-section">
+      <h2 class="section-title">System Architecture</h2>
+      <div class="arch-grid glass-panel">
+        <div class="arch-card">
+          <div class="arch-icon-wrapper arch-icon-wrapper--ingestion">
+            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+              <rect x="9" y="9" width="6" height="6"></rect>
+              <line x1="9" y1="1" x2="9" y2="4"></line>
+              <line x1="15" y1="1" x2="15" y2="4"></line>
+              <line x1="9" y1="20" x2="9" y2="23"></line>
+              <line x1="15" y1="20" x2="15" y2="23"></line>
+              <line x1="20" y1="9" x2="23" y2="9"></line>
+              <line x1="20" y1="14" x2="23" y2="14"></line>
+              <line x1="1" y1="9" x2="4" y2="9"></line>
+              <line x1="1" y1="14" x2="4" y2="14"></line>
+            </svg>
+          </div>
+          <h3>Data Ingestion</h3>
+          <p>Public REST API endpoints provide live river telemetry and gauge station metadata.</p>
+        </div>
+
+        <div class="arch-card">
+          <div class="arch-icon-wrapper arch-icon-wrapper--lambda">
+            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path>
+              <polyline points="13 11 9 17 15 17 11 23"></polyline>
+            </svg>
+          </div>
+          <h3>AWS Lambda & S3</h3>
+          <p>Serverless functions process telemetry, assess limits, and store flat JSON in S3.</p>
+        </div>
+
+        <div class="arch-card">
+          <div class="arch-icon-wrapper arch-icon-wrapper--ui">
+            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+              <polyline points="4 14 10 6 16 12 22 4"></polyline>
+            </svg>
+          </div>
+          <h3>Dashboard UI</h3>
+          <p>Frontend fetches secure JSON via CORS, rendering high-resolution insights.</p>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer id="site-footer">
-    <p>Built by <strong>Aryan Goswami</strong> · Serverless on AWS · <a href="https://github.com/aryangoswami1205/SerFloodSys" target="_blank" rel="noopener">GitHub</a></p>
+    <p>Built by <strong>Aryan Goswami</strong> · Serverless on AWS · <a
+        href="https://github.com/aryangoswami1205/SerFloodSys" target="_blank" rel="noopener">GitHub</a></p>
   </footer>
+
+  <!-- Leaflet.js -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <script src="app.js"></script>
 </body>
+
 </html>
