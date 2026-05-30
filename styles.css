@@ -140,8 +140,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  overflow: hidden; /* prevent double scrollbar — matrix scrolls internally */
+  height: 100vh;    /* fixed viewport height so flex children fill exactly */
+  overflow: hidden;  /* matrix pane scrolls internally on desktop */
 }
 
 a {
@@ -775,12 +775,13 @@ a:hover {
 /* Mobile: stacked single-column */
 @media (max-width: 700px) {
   body {
-    overflow: auto; /* allow body scrolling on mobile */
+    height: auto;       /* release fixed viewport height */
+    overflow-y: auto;   /* allow full-page scrolling */
   }
 
   #workspace {
     grid-template-columns: 1fr;
-    grid-template-rows: 45vh 1fr;
+    grid-template-rows: 45vh auto; /* map pinned, matrix flows naturally */
   }
 
   #map-pane {
