@@ -1,145 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SerHydroSys — Real-time flood risk monitoring for German rivers with interactive WebGIS map.">
+  <meta name="description"
+    content="SerHydroSys — Real-time flood risk monitoring for German rivers. Live telemetry, interactive WebGIS, and threshold alerting powered by AWS Lambda.">
   <title>SerHydroSys — Flood Risk Dashboard</title>
+
+  <!-- ── Fonts ──────────────────────────────────────────────────── -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
 
-  <!-- Leaflet.js CSS -->
+  <!-- ── Leaflet.js ─────────────────────────────────────────────── -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
+  <!-- ── Application Stylesheet ─────────────────────────────────── -->
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <header id="site-header">
-    <div class="header-inner">
-      <div class="logo-group">
-        <span class="logo-icon">🌊</span>
-        <div>
-          <h1 id="site-title">SerHydroSys</h1>
-          <p class="tagline">Serverless Hydrological Flood Risk Alert System</p>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       HEADER — Minimalist control banner
+       ════════════════════════════════════════════════════════════════ -->
+  <header id="app-header">
+    <div class="header-bar">
+
+      <!-- Brand -->
+      <div class="brand">
+        <span class="brand-icon">🌊</span>
+        <div class="brand-text">
+          <h1 class="brand-name">SerHydroSys</h1>
+          <span class="brand-sub">Serverless Hydrological Monitoring</span>
         </div>
       </div>
-      <div class="header-actions">
-        <button id="export-report-btn" class="btn-export" type="button" aria-label="Download current status report">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          Export Report
-        </button>
-        <span id="connection-indicator" class="indicator indicator--loading">
-          <span class="indicator-dot"></span>
-          <span class="indicator-label">Connecting…</span>
+
+      <!-- Controls -->
+      <div class="header-controls">
+
+        <!-- System status indicator -->
+        <span id="connection-indicator" class="sys-status sys-status--loading">
+          <span class="sys-dot"></span>
+          <span class="sys-label">Connecting</span>
         </span>
+
+        <!-- Export CSV button -->
+        <button id="export-report-btn" class="btn-utility" type="button" aria-label="Export station report as CSV">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span>Export</span>
+        </button>
+
+        <!-- Theme toggle -->
+        <button id="theme-toggle" class="btn-icon" type="button" aria-label="Toggle light/dark theme">
+          <!-- Sun icon (visible in dark mode) -->
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <!-- Moon icon (visible in light mode) -->
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
       </div>
     </div>
   </header>
 
-  <main id="main-content">
-    <section id="summary-bar" class="glass-panel">
-      <div class="summary-item">
-        <span class="summary-value" id="summary-stations">—</span>
-        <span class="summary-label">Stations Monitored</span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-item">
-        <span class="summary-value" id="summary-alerts">—</span>
-        <span class="summary-label">Active Alerts</span>
-      </div>
-      <div class="summary-divider"></div>
-      <div class="summary-item">
-        <span class="summary-value" id="summary-updated">—</span>
-        <span class="summary-label">Last Updated</span>
-      </div>
-    </section>
+  <!-- ════════════════════════════════════════════════════════════════
+       WORKSPACE — Split-pane spatial layout
+       ════════════════════════════════════════════════════════════════ -->
+  <main id="workspace">
 
-    <!-- WebGIS Map -->
-    <section id="map-section" class="glass-panel map-panel">
-      <div class="map-header">
-        <h2 class="section-title">Station Map</h2>
-        <span class="map-subtitle">Hover a pin to highlight its card · hover a card to focus its pin</span>
-      </div>
+    <!-- ── MAP PANE ─────────────────────────────────────────────── -->
+    <section id="map-pane" aria-label="Station map">
       <div id="station-map"></div>
-    </section>
-
-    <section id="station-cards" class="cards-grid">
-      <div class="loading-state" id="loading-state">
-        <div class="spinner"></div>
-        <p>Fetching latest station data…</p>
+      <!-- Summary KPI strip, overlaid on map bottom -->
+      <div id="kpi-strip">
+        <div class="kpi">
+          <span class="kpi-value" id="kpi-stations">—</span>
+          <span class="kpi-label">Stations</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-value" id="kpi-alerts">—</span>
+          <span class="kpi-label">Alerts</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-value kpi-value--ts" id="kpi-updated">—</span>
+          <span class="kpi-label">Last Sync</span>
+        </div>
       </div>
     </section>
 
-    <section id="architecture-panel" class="architecture-section">
-      <h2 class="section-title">System Architecture</h2>
-      <div class="arch-grid glass-panel">
-        <div class="arch-card">
-          <div class="arch-icon-wrapper arch-icon-wrapper--ingestion">
-            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-              <rect x="9" y="9" width="6" height="6"></rect>
-              <line x1="9" y1="1" x2="9" y2="4"></line>
-              <line x1="15" y1="1" x2="15" y2="4"></line>
-              <line x1="9" y1="20" x2="9" y2="23"></line>
-              <line x1="15" y1="20" x2="15" y2="23"></line>
-              <line x1="20" y1="9" x2="23" y2="9"></line>
-              <line x1="20" y1="14" x2="23" y2="14"></line>
-              <line x1="1" y1="9" x2="4" y2="9"></line>
-              <line x1="1" y1="14" x2="4" y2="14"></line>
-            </svg>
-          </div>
-          <h3>Data Ingestion</h3>
-          <p>Public REST API endpoints provide live river telemetry and gauge station metadata.</p>
+    <!-- ── TELEMETRY MATRIX PANE ────────────────────────────────── -->
+    <section id="matrix-pane" aria-label="Telemetry data matrix">
+      <div class="matrix-header">
+        <h2 class="matrix-title">Live Telemetry</h2>
+        <span class="matrix-count" id="matrix-count">0 stations</span>
+      </div>
+      <div class="matrix-scroll" id="matrix-scroll">
+        <!-- Loading state -->
+        <div class="matrix-loading" id="matrix-loading">
+          <div class="spinner"></div>
+          <span>Acquiring telemetry feed…</span>
         </div>
-
-        <div class="arch-card">
-          <div class="arch-icon-wrapper arch-icon-wrapper--lambda">
-            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path>
-              <polyline points="13 11 9 17 15 17 11 23"></polyline>
-            </svg>
-          </div>
-          <h3>AWS Lambda & S3</h3>
-          <p>Serverless functions process telemetry, assess limits, and store flat JSON in S3.</p>
-        </div>
-
-        <div class="arch-card">
-          <div class="arch-icon-wrapper arch-icon-wrapper--ui">
-            <svg class="arch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-              <polyline points="4 14 10 6 16 12 22 4"></polyline>
-            </svg>
-          </div>
-          <h3>Dashboard UI</h3>
-          <p>Frontend fetches secure JSON via CORS, rendering high-resolution insights.</p>
-        </div>
+        <!-- Table populated by app.js -->
+        <table class="matrix-table" id="matrix-table" aria-label="Station telemetry data">
+          <thead>
+            <tr>
+              <th class="col-status" aria-label="Status"></th>
+              <th class="col-station">Station</th>
+              <th class="col-level">Level</th>
+              <th class="col-threshold">Threshold</th>
+              <th class="col-gauge">Gauge</th>
+              <th class="col-time">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-body">
+            <!-- Rows injected dynamically -->
+          </tbody>
+        </table>
       </div>
     </section>
   </main>
 
-  <footer id="site-footer">
-    <p>Built by <strong>Aryan Goswami</strong> · Serverless on AWS · <a
-        href="https://github.com/aryangoswami1205/SerFloodSys" target="_blank" rel="noopener">GitHub</a></p>
+  <!-- ════════════════════════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════════════════════════ -->
+  <footer id="app-footer">
+    <span>Built by <strong>Aryan Goswami</strong></span>
+    <span class="footer-sep">·</span>
+    <span>Serverless on AWS</span>
+    <span class="footer-sep">·</span>
+    <a href="https://github.com/aryangoswami1205/SerFloodSys" target="_blank" rel="noopener">GitHub</a>
   </footer>
 
-  <!-- Leaflet.js -->
+  <!-- ── Leaflet.js Runtime ─────────────────────────────────────── -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+  <!-- ── Application Logic ──────────────────────────────────────── -->
   <script src="app.js"></script>
 </body>
 
