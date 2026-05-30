@@ -40,16 +40,43 @@ MONITORED_STATIONS = [
         "station_id": "KÖLN",           # PEGELONLINE station identifier
         "label": "Cologne (Rhine)",      # Human-readable name
         "threshold_m": 6.20,             # Flood threshold in metres
+        "lat": 50.936,                   # Latitude for WebGIS map
+        "lon": 6.963,                    # Longitude for WebGIS map
     },
     {
         "station_id": "PASSAU DONAU",     # PEGELONLINE station identifier
         "label": "Passau (Danube)",       # Human-readable name
         "threshold_m": 7.00,             # Flood threshold in metres
+        "lat": 48.577,                   # Latitude for WebGIS map
+        "lon": 13.476,                   # Longitude for WebGIS map
     },
     {
         "station_id": "DRESDEN",         # PEGELONLINE station identifier
         "label": "Dresden (Elbe)",        # Human-readable name
         "threshold_m": 4.00,             # Flood threshold in metres
+        "lat": 51.054,                   # Latitude for WebGIS map
+        "lon": 13.738,                   # Longitude for WebGIS map
+    },
+    {
+        "station_id": "TRIER UP",           # PEGELONLINE station identifier
+        "label": "Trier (Moselle)",      # Human-readable name
+        "threshold_m": 6.00,             # Flood threshold in metres
+        "lat": 49.753,                   # Latitude for WebGIS map
+        "lon": 6.627,                    # Longitude for WebGIS map
+    },
+    {
+        "station_id": "MAXAU",           # PEGELONLINE station identifier
+        "label": "Maxau (Rhine)",        # Human-readable name
+        "threshold_m": 7.00,             # Flood threshold in metres
+        "lat": 49.039,                   # Latitude for WebGIS map
+        "lon": 8.307,                    # Longitude for WebGIS map
+    },
+    {
+        "station_id": "VEGESACK",          # PEGELONLINE station identifier
+        "label": "Bremen (Weser)",       # Human-readable name
+        "threshold_m": 8.90,             # Flood threshold in metres
+        "lat": 53.076,                   # Latitude for WebGIS map
+        "lon": 8.802,                    # Longitude for WebGIS map
     },
 ]
 
@@ -289,6 +316,8 @@ def lambda_handler(event, context):
         station_id = station_config["station_id"]
         label      = station_config["label"]
         threshold  = station_config["threshold_m"]
+        lat        = station_config["lat"]
+        lon        = station_config["lon"]
 
         print(f"📡 [{label}] Fetching water level for station: {station_id} …")
 
@@ -303,6 +332,8 @@ def lambda_handler(event, context):
                 "station_id": station_id,
                 "water_level_m": None,
                 "threshold_m": threshold,
+                "lat": lat,
+                "lon": lon,
                 "measurement_timestamp": None,
                 "status": "ERROR",
                 "message": str(exc),
@@ -331,6 +362,8 @@ def lambda_handler(event, context):
             "station_id": station_id,
             "water_level_m": station_data["water_level_m"],
             "threshold_m": threshold,
+            "lat": lat,
+            "lon": lon,
             "measurement_timestamp": station_data["timestamp"],
             "status": "ALERT" if is_alert else "SAFE",
         })
