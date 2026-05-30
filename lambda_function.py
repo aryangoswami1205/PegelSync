@@ -75,7 +75,7 @@ MONITORED_STATIONS = [
         "lon": 9.926,
     },
     {
-        "station_id": "HEIDELBERG",
+        "station_id": "HEIDELBERG UP",
         "label": "Heidelberg (Neckar)",
         "threshold_m": 4.40,
         "lat": 49.414,
@@ -91,7 +91,7 @@ MONITORED_STATIONS = [
         "lon": 13.476,
     },
     {
-        "station_id": "STRAUBING",
+        "station_id": "PFELLING",
         "label": "Straubing (Danube)",
         "threshold_m": 4.50,
         "lat": 48.889,
@@ -107,7 +107,7 @@ MONITORED_STATIONS = [
         "lon": 13.738,
     },
     {
-        "station_id": "MAGDEBURG STROMBRÜCKE",
+        "station_id": "MAGDEBURG-STROMBRÜCKE",
         "label": "Magdeburg (Elbe)",
         "threshold_m": 4.30,
         "lat": 52.127,
@@ -130,7 +130,7 @@ MONITORED_STATIONS = [
         "lon": 8.802,
     },
     {
-        "station_id": "HANN.-MÜNDEN",
+        "station_id": "HANN.MUENDEN",
         "label": "Hann. Münden (Weser)",
         "threshold_m": 4.00,
         "lat": 51.418,
@@ -139,14 +139,14 @@ MONITORED_STATIONS = [
 
     # ── Elbe Estuary & Oder Basin ────────────────────────────────────
     {
-        "station_id": "ST. PAULI",
+        "station_id": "HAMBURG ST. PAULI",
         "label": "Hamburg (Elbe)",
         "threshold_m": 8.70,
         "lat": 53.545,
         "lon": 9.967,
     },
     {
-        "station_id": "FRANKFURT",
+        "station_id": "FRANKFURT1 (ODER)",
         "label": "Frankfurt/Oder (Oder)",
         "threshold_m": 4.00,
         "lat": 52.348,
