@@ -35,48 +35,122 @@ import boto3
 PEGELONLINE_BASE_URL = "https://www.pegelonline.wsv.de/webservices/rest-api/v2"
 
 # List of target stations and their respective flood thresholds in metres.
+# 15-station national network across 5 major river basins.
 MONITORED_STATIONS = [
+
+    # ── Rhine Basin ──────────────────────────────────────────────────
     {
-        "station_id": "KÖLN",           # PEGELONLINE station identifier
-        "label": "Cologne (Rhine)",      # Human-readable name
-        "threshold_m": 6.20,             # Flood threshold in metres
-        "lat": 50.936,                   # Latitude for WebGIS map
-        "lon": 6.963,                    # Longitude for WebGIS map
+        "station_id": "KÖLN",
+        "label": "Cologne (Rhine)",
+        "threshold_m": 6.20,
+        "lat": 50.936,
+        "lon": 6.963,
     },
     {
-        "station_id": "PASSAU DONAU",     # PEGELONLINE station identifier
-        "label": "Passau (Danube)",       # Human-readable name
-        "threshold_m": 7.00,             # Flood threshold in metres
-        "lat": 48.577,                   # Latitude for WebGIS map
-        "lon": 13.476,                   # Longitude for WebGIS map
+        "station_id": "MAXAU",
+        "label": "Maxau (Rhine)",
+        "threshold_m": 7.00,
+        "lat": 49.039,
+        "lon": 8.307,
     },
     {
-        "station_id": "DRESDEN",         # PEGELONLINE station identifier
-        "label": "Dresden (Elbe)",        # Human-readable name
-        "threshold_m": 4.00,             # Flood threshold in metres
-        "lat": 51.054,                   # Latitude for WebGIS map
-        "lon": 13.738,                   # Longitude for WebGIS map
+        "station_id": "COCHEM",
+        "label": "Cochem (Moselle)",
+        "threshold_m": 6.20,
+        "lat": 50.146,
+        "lon": 7.169,
     },
     {
-        "station_id": "TRIER UP",           # PEGELONLINE station identifier
-        "label": "Trier (Moselle)",      # Human-readable name
-        "threshold_m": 6.00,             # Flood threshold in metres
-        "lat": 49.753,                   # Latitude for WebGIS map
-        "lon": 6.627,                    # Longitude for WebGIS map
+        "station_id": "KAUB",
+        "label": "Kaub (Rhine)",
+        "threshold_m": 4.60,
+        "lat": 50.084,
+        "lon": 7.765,
     },
     {
-        "station_id": "MAXAU",           # PEGELONLINE station identifier
-        "label": "Maxau (Rhine)",        # Human-readable name
-        "threshold_m": 7.00,             # Flood threshold in metres
-        "lat": 49.039,                   # Latitude for WebGIS map
-        "lon": 8.307,                    # Longitude for WebGIS map
+        "station_id": "WÜRZBURG",
+        "label": "Würzburg (Main)",
+        "threshold_m": 4.00,
+        "lat": 49.794,
+        "lon": 9.926,
     },
     {
-        "station_id": "VEGESACK",          # PEGELONLINE station identifier
-        "label": "Bremen (Weser)",       # Human-readable name
-        "threshold_m": 8.90,             # Flood threshold in metres
-        "lat": 53.076,                   # Latitude for WebGIS map
-        "lon": 8.802,                    # Longitude for WebGIS map
+        "station_id": "HEIDELBERG",
+        "label": "Heidelberg (Neckar)",
+        "threshold_m": 4.40,
+        "lat": 49.414,
+        "lon": 8.709,
+    },
+
+    # ── Danube Basin ─────────────────────────────────────────────────
+    {
+        "station_id": "PASSAU DONAU",
+        "label": "Passau (Danube)",
+        "threshold_m": 7.00,
+        "lat": 48.577,
+        "lon": 13.476,
+    },
+    {
+        "station_id": "STRAUBING",
+        "label": "Straubing (Danube)",
+        "threshold_m": 4.50,
+        "lat": 48.889,
+        "lon": 12.574,
+    },
+
+    # ── Elbe Basin ───────────────────────────────────────────────────
+    {
+        "station_id": "DRESDEN",
+        "label": "Dresden (Elbe)",
+        "threshold_m": 4.00,
+        "lat": 51.054,
+        "lon": 13.738,
+    },
+    {
+        "station_id": "MAGDEBURG STROMBRÜCKE",
+        "label": "Magdeburg (Elbe)",
+        "threshold_m": 4.30,
+        "lat": 52.127,
+        "lon": 11.645,
+    },
+    {
+        "station_id": "SCHÖNA",
+        "label": "Schöna (Elbe)",
+        "threshold_m": 4.00,
+        "lat": 50.873,
+        "lon": 14.239,
+    },
+
+    # ── Weser Basin ──────────────────────────────────────────────────
+    {
+        "station_id": "VEGESACK",
+        "label": "Bremen (Weser)",
+        "threshold_m": 8.90,
+        "lat": 53.076,
+        "lon": 8.802,
+    },
+    {
+        "station_id": "HANN.-MÜNDEN",
+        "label": "Hann. Münden (Weser)",
+        "threshold_m": 4.00,
+        "lat": 51.418,
+        "lon": 9.650,
+    },
+
+    # ── Elbe Estuary & Oder Basin ────────────────────────────────────
+    {
+        "station_id": "ST. PAULI",
+        "label": "Hamburg (Elbe)",
+        "threshold_m": 8.70,
+        "lat": 53.545,
+        "lon": 9.967,
+    },
+    {
+        "station_id": "FRANKFURT",
+        "label": "Frankfurt/Oder (Oder)",
+        "threshold_m": 4.00,
+        "lat": 52.348,
+        "lon": 14.555,
     },
 ]
 
