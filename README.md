@@ -101,7 +101,7 @@ python3 -m http.server 8080
 | Layer | Technology |
 |-------|-----------|
 | **Cloud Infrastructure** | AWS Lambda, Amazon S3, AWS EventBridge, AWS IAM |
-| **Backend** | Python 3.9+ (Standard Library only) |
+| **Backend** | Python 3.14 (Standard Library only) |
 | **Frontend** | HTML5, CSS3, Vanilla JavaScript |
 | **WebGIS** | Leaflet.js 1.9.4 with CartoDB tile layers |
 | **Typography** | Inter (UI) + JetBrains Mono (data) |
