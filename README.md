@@ -71,7 +71,6 @@ SerHydroSys/
 │   └── app.js                  # Leaflet map, matrix rendering, cross-highlighting, CSV export
 ├── Dockerfile                  # Local Lambda testing container
 ├── requirements.txt            # boto3 for local testing (pre-installed on AWS)
-├── AWS_DEPLOYMENT_GUIDE.md     # Step-by-step AWS deployment instructions
 └── README.md
 ```
 
@@ -93,7 +92,7 @@ python3 -m http.server 8080
 ```
 
 ### Production Deployment
-- **Backend**: Deploy `lambda_function.py` to AWS Lambda via the console. See `AWS_DEPLOYMENT_GUIDE.md` for full instructions.
+- **Backend**: Deploy `lambda_function.py` to AWS Lambda via the console.
 - **Frontend**: The `frontend-dashboard/` directory is deployed to the `gh-pages` branch and served via GitHub Pages.
 
 ## 🛠️ Tech Stack
