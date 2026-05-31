@@ -556,7 +556,6 @@ a:hover {
 /* ── Telemetry Table ────────────────────────────────────────────── */
 .matrix-table {
   width: 100%;
-  min-width: 700px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 0.78rem;
@@ -784,11 +783,11 @@ a:hover {
     border-left: none;
     border-top: 1px solid var(--border);
     max-height: none;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .matrix-scroll {
-    overflow-x: auto;
+    overflow: visible;
   }
 
   .header-bar {
@@ -816,10 +815,30 @@ a:hover {
     font-size: 0.52rem;
   }
 
+  /* Scale table to fit 6 columns on mobile */
   .matrix-table th,
   .matrix-table td {
-    padding: 0.55rem 0.65rem;
+    padding: 0.4rem 0.2rem;
   }
+  
+  .matrix-table th {
+    font-size: 0.5rem;
+    letter-spacing: 0.2px;
+  }
+  
+  .td-station-name { font-size: 0.65rem; }
+  .td-station-river { font-size: 0.5rem; }
+  .td-numeric { font-size: 0.65rem; }
+  .td-threshold { font-size: 0.6rem; }
+  .gauge-pct { font-size: 0.55rem; min-width: 24px; }
+  .td-time { font-size: 0.55rem; }
+  
+  .col-status { width: 24px; }
+  .col-station { width: 28%; }
+  .col-level { width: 16%; }
+  .col-threshold { width: 15%; }
+  .col-gauge { width: 18%; }
+  .col-time { width: 15%; }
 }
 
 /* Small mobile */
