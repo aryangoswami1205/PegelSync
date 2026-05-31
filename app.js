@@ -303,16 +303,16 @@ function renderMatrix(stations) {
     const numericClass = `is-${statusClass}`;
 
     row.innerHTML = `
-      <td class="td-status">
+      <td class="col-status td-status">
         <span class="status-pip status-pip--${statusClass}" title="${statusKey}"></span>
       </td>
-      <td>
+      <td class="col-station">
         <div class="td-station-name">${escapeHtml(station.label)}</div>
         <div class="td-station-river">${escapeHtml(river)} · ${escapeHtml(station.station_id)}</div>
       </td>
-      <td class="td-numeric ${numericClass}">${levelStr}<span style="font-size:0.65rem;color:var(--text-muted);margin-left:2px">m</span></td>
-      <td class="td-threshold">${thresholdStr} m</td>
-      <td>
+      <td class="col-level td-numeric ${numericClass}">${levelStr}<span style="font-size:0.65rem;color:var(--text-muted);margin-left:2px">m</span></td>
+      <td class="col-threshold td-threshold">${thresholdStr} m</td>
+      <td class="col-gauge">
         <div class="gauge-container">
           <div class="gauge-track">
             <div class="gauge-fill ${pct >= 100 ? "gauge-fill--alert" : ""}" style="width:${pct}%"></div>
@@ -320,7 +320,7 @@ function renderMatrix(stations) {
           <span class="gauge-pct">${pctStr}%</span>
         </div>
       </td>
-      <td class="td-time">${timeStr}</td>
+      <td class="col-time td-time">${timeStr}</td>
     `;
 
     // ── Matrix → Map cross-highlight ───────────────────────────────
