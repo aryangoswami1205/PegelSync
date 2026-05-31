@@ -332,6 +332,9 @@ function renderMatrix(stations) {
       // Trigger map marker
       const entry = markerRegistry[station.station_id];
       if (entry) {
+        // Explicitly pan the map to center the station
+        map.panTo([station.lat, station.lon], { animate: true, duration: 0.35 });
+        
         entry.marker.openPopup();
         entry.marker.setStyle({
           radius: 11,
@@ -423,6 +426,7 @@ function renderMapMarkers(stations) {
       closeButton: false,
       offset: [0, -6],
       className: "pegelsync-popup",
+      autoPan: false,
     }).setContent(`
       <div class="popup-station">${escapeHtml(station.label)}</div>
       <div class="popup-river">${escapeHtml(river)}</div>
