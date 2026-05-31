@@ -6,7 +6,7 @@ Built to replace expensive 24/7 server-based monitoring, this project leverages 
 
 ## 🖥️ Live Dashboard
 
-**[View the Live Dashboard →](https://aryangoswami1205.github.io/SerFloodSys/)**
+**[View the Live Dashboard →](https://aryangoswami1205.github.io/PegelSync/)**
 
 ## 🌟 Key Features
 
