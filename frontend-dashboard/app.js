@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
- * SerHydroSys — Application Logic (app.js)
+ * PegelSync — Application Logic (app.js)
  * ───────────────────────────────────────────────────────────────────
  * Responsibilities:
  *   1. Fetch `latest_status.json` from a public S3 bucket.
@@ -103,7 +103,7 @@ function getCurrentTheme() {
  */
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem("serhydrosys-theme", theme);
+  localStorage.setItem("pegelsync-theme", theme);
   swapTileLayer(theme);
 }
 
@@ -120,7 +120,7 @@ function toggleTheme() {
  * Called once at startup before the map is created.
  */
 function initTheme() {
-  const stored = localStorage.getItem("serhydrosys-theme");
+  const stored = localStorage.getItem("pegelsync-theme");
   if (stored) {
     document.documentElement.setAttribute("data-theme", stored);
     return;
@@ -219,7 +219,7 @@ async function fetchStationData() {
     renderMapMarkers(data.stations || []);
     setConnectionStatus("live");
   } catch (err) {
-    console.error("[SerHydroSys] Fetch failed:", err);
+    console.error("[PegelSync] Fetch failed:", err);
     setConnectionStatus("error");
 
     // Show error in loading area
@@ -422,7 +422,7 @@ function renderMapMarkers(stations) {
     const popup = L.popup({
       closeButton: false,
       offset: [0, -6],
-      className: "shs-popup",
+      className: "pegelsync-popup",
     }).setContent(`
       <div class="popup-station">${escapeHtml(station.label)}</div>
       <div class="popup-river">${escapeHtml(river)}</div>
@@ -556,7 +556,7 @@ function exportReport() {
   const slug = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
 
   link.href = url;
-  link.download = `SerHydroSys_Report_${slug}.csv`;
+  link.download = `PegelSync_Report_${slug}.csv`;
   link.style.display = "none";
   document.body.appendChild(link);
   link.click();

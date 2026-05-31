@@ -478,7 +478,7 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("  SerHydroSys — Multi-Station Local Test Run")
+    print("  PegelSync — Multi-Station Local Test Run")
     print(f"  Monitoring {len(MONITORED_STATIONS)} station(s)")
     print("=" * 60)
 

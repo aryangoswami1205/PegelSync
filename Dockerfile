@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────
-# SerHydroSys — Dockerfile for Local Lambda Testing
+# PegelSync — Dockerfile for Local Lambda Testing
 # ──────────────────────────────────────────────────────────
 # This image mimics a minimal AWS Lambda Python environment
 # so we can test our flood-alert script in isolation before

@@ -1,6 +1,6 @@
-# SerHydroSys: Serverless Hydrological Flood Risk Alert System 🌊
+# PegelSync: Serverless Hydrological Flood Risk Alert System 🌊
 
-**SerHydroSys** is a zero-dependency, cloud-native microservice and dashboard that monitors real-time river gauge data across Germany's 5 major river basins and generates automated flood risk alerts.
+**PegelSync** is a zero-dependency, cloud-native microservice and dashboard that monitors real-time river gauge data across Germany's 5 major river basins and generates automated flood risk alerts.
 
 Built to replace expensive 24/7 server-based monitoring, this project leverages AWS Serverless technologies to achieve a highly scalable, fault-tolerant system that costs $0.00/month to run under the AWS Free Tier.
 
@@ -63,7 +63,7 @@ EventBridge (hourly) → AWS Lambda → PEGELONLINE REST API (v2)
 ## 📂 Repository Structure
 
 ```
-SerHydroSys/
+PegelSync/
 ├── lambda_function.py          # AWS Lambda backend (15-station network)
 ├── frontend-dashboard/
 │   ├── index.html              # Split-pane spatial layout + theme toggle
@@ -79,8 +79,8 @@ SerHydroSys/
 ### Local Testing
 ```bash
 # Test the Lambda logic locally in a Docker container
-docker build -t serhydrosys .
-docker run --rm serhydrosys
+docker build -t pegelsync .
+docker run --rm pegelsync
 ```
 
 ### Frontend Preview
