@@ -556,6 +556,7 @@ a:hover {
 /* ── Telemetry Table ────────────────────────────────────────────── */
 .matrix-table {
   width: 100%;
+  min-width: 700px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 0.78rem;
@@ -761,15 +762,6 @@ a:hover {
   #workspace {
     grid-template-columns: 1.2fr 1fr;
   }
-
-  .col-threshold,
-  .col-time {
-    display: none;
-  }
-
-  .col-station { width: 38%; }
-  .col-level { width: 22%; }
-  .col-gauge { width: 30%; }
 }
 
 /* Mobile: stacked single-column */
@@ -792,11 +784,11 @@ a:hover {
     border-left: none;
     border-top: 1px solid var(--border);
     max-height: none;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .matrix-scroll {
-    overflow: visible;
+    overflow-x: auto;
   }
 
   .header-bar {
@@ -828,13 +820,6 @@ a:hover {
   .matrix-table td {
     padding: 0.55rem 0.65rem;
   }
-
-  .col-gauge {
-    display: none;
-  }
-
-  .col-station { width: 42%; }
-  .col-level { width: 28%; }
 }
 
 /* Small mobile */
