@@ -34,6 +34,8 @@ The Lambda merges this into the station status entry and tags the source in
 import json
 import math
 import os
+import socket
+import ssl
 import urllib.request
 import urllib.error
 
@@ -66,6 +68,31 @@ def efas_diag_reset():
 def efas_diag_lines():
     return list(_EFAS_DIAG_LINES)
 
+
+# ── IPv4-forced urllib opener ───────────────────────────────────────────────
+# On AWS Lambda, urllib's default opener sometimes hits `Errno 16 (EBUSY)`
+# because it negotiates a non-blocking / IPv6 socket the sandbox rejects.
+# Forcing AF_INET resolves it. EFAS itself is reachable from Lambda.
+_REAL_GETADDRINFO = socket.getaddrinfo
+
+
+class _IPv4HTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        orig = socket.getaddrinfo
+        socket.getaddrinfo = _getaddrinfo_ipv4
+        try:
+            return super().https_open(req)
+        finally:
+            socket.getaddrinfo = orig
+
+
+def _getaddrinfo_ipv4(host, port, *args, **kwargs):
+    # Only override the address family; call the original resolver directly.
+    return _REAL_GETADDRINFO(host, port, socket.AF_INET, socket.SOCK_STREAM)
+
+
+_EFAS_OPENER = urllib.request.build_opener(_IPv4HTTPSHandler)
+
 # ── EFAS configuration ──────────────────────────────────────────────────────
 # Public EFAS API (Copernicus JRC). Queried by geographic coordinates, which
 # we already have for every station in STATIONS, so no station-code mapping is
@@ -89,7 +116,7 @@ def _fetch_efas_point(lat, lon, timeout=EFAS_TIMEOUT_S):
     url = f"{EFAS_BASE}/forecast?lat={lat}&lon={lon}&owo=true"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "PegelSync/1.0"})
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _EFAS_OPENER.open(req, timeout=timeout) as resp:
             status = getattr(resp, "status", resp.getcode())
             body = resp.read().decode("utf-8")
             data = json.loads(body)
