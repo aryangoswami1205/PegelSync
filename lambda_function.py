@@ -66,9 +66,28 @@ def _perf(station_id, phase, ms, ok=True, err=""):
         })
 
 
+# ── Bounded per-host concurrency ───────────────────────────────────────────
+# PROVEN ROOT CAUSE of the ~19-21s runtime: PEGELONLINE (and Bright Sky's free
+# tier) THROTTLE concurrent connections from a single IP. The earlier "parallel
+# fetch per station" change spawned ~36 simultaneous PEGELONLINE connections,
+# which the API queued — every call slowed to 3-7s (VEGESACK W_P30D hit 6883ms).
+# Bounding concurrency per host keeps the APIs happy: PEGELONLINE tolerates
+# ~10, Bright Sky ~5. This semaphore serializes only at the network layer, not
+# across stations, so total wall-clock stays low.
+import threading
+_SEM_PEGEL = threading.Semaphore(10)   # PEGELONLINE (both W and Q endpoints)
+_SEM_BRIGHT = threading.Semaphore(5)   # api.brightsky.dev (free tier is small)
+
+
 def _open_bytes(url, timeout, station_id, phase, headers=None, retries=1):
-    """urlopen_retry + read-all + per-phase timing (recorded via _perf)."""
+    """urlopen_retry + read-all + per-phase timing (recorded via _perf).
+
+    Acquires the per-host semaphore so we never open more than N concurrent
+    connections to any single upstream API (avoids IP-level throttling).
+    """
+    sem = _SEM_BRIGHT if "brightsky" in url else _SEM_PEGEL
     t0 = time.time()
+    sem.acquire()
     try:
         data = urlopen_retry(url, timeout=timeout, retries=retries,
                              backoff=0.4, headers=headers).read()
@@ -78,6 +97,8 @@ def _open_bytes(url, timeout, station_id, phase, headers=None, retries=1):
         _perf(station_id, phase, (time.time() - t0) * 1000,
               ok=False, err=str(e)[:80])
         raise
+    finally:
+        sem.release()
 
 
 # Local module: the statistically-validated water-level forecast engine.
