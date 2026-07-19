@@ -17,6 +17,7 @@ in the AWS Lambda runtime.  No pip packages required.
 
 import json
 import os
+import time
 from datetime import datetime, timezone, timedelta
 import urllib.request
 import urllib.error
@@ -25,6 +26,29 @@ import concurrent.futures
 # We use quote to safely URL-encode German umlauts (e.g. KÖLN -> K%C3%96LN)
 from urllib.parse import quote
 import boto3
+
+# ── Resilient URL fetch with one retry + backoff ──────────────────────────
+# Bright Sky's free tier (~20 req/min) can briefly 429 under the parallel
+# load we now run (12 workers). A single retry after a short backoff absorbs
+# those without failing the station's precipitation fetch.
+def urlopen_retry(url, timeout=5, retries=1, backoff=0.4, headers=None):
+    """urllib.urlopen with `retries` extra attempts + linear backoff.
+
+    Returns the response object on success. Raises the last exception if all
+    attempts fail. Used for the Bright Sky call; PEGELONLINE calls keep the
+    plain urlopen since that source is reliable.
+    """
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(url, headers=headers or {})
+            return urllib.request.urlopen(req, timeout=timeout)
+        except Exception as e:
+            last_exc = e
+            if attempt < retries:
+                time.sleep(backoff * (attempt + 1))
+    raise last_exc
+
 
 # Local module: the statistically-validated water-level forecast engine.
 # Keep it stdlib-only so the Lambda stays zero-dependency.
@@ -285,7 +309,8 @@ def process_station(station_config: dict) -> dict:
         
         # Add a realistic User-Agent as a courtesy
         req = urllib.request.Request(weather_url, headers={'User-Agent': 'PegelSync/1.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urlopen_retry(weather_url, timeout=5, retries=1, backoff=0.4,
+                           headers={'User-Agent': 'PegelSync/1.0'}) as response:
             weather_data = json.loads(response.read().decode("utf-8"))
             weather = weather_data.get("weather", [])
             
@@ -576,7 +601,11 @@ def lambda_handler(event, context):
             return (error_entry, None, str(exc))
 
     # Execute concurrent requests
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    # Bumped 5 -> 12: with 15 stations and 4 live API calls each, 5 workers
+    # forced 3 serial batches (~19s). 12 workers run them in ~2 batches
+    # (~7s). Bright Sky's free tier (~20 req/min) is protected by the
+    # retry/backoff below, so brief 429s are absorbed rather than failing.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
         results = executor.map(fetch_and_evaluate, MONITORED_STATIONS)
 
     for status_entry, alert_payload, error in results:
