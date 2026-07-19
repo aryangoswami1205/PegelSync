@@ -50,6 +50,36 @@ def urlopen_retry(url, timeout=5, retries=1, backoff=0.4, headers=None):
     raise last_exc
 
 
+# ── Per-phase performance diagnostic (opt-in) ─────────────────────────────
+# Set PERF_DIAG=1 to time each external fetch per station. Surfaced in the
+# Lambda's JSON response under `perf` so the real bottleneck is visible in the
+# Test panel (no CloudWatch needed). Off by default.
+PERF_DIAG = os.environ.get("PERF_DIAG") == "1"
+_PERF_LOG = []
+
+
+def _perf(station_id, phase, ms, ok=True, err=""):
+    if PERF_DIAG:
+        _PERF_LOG.append({
+            "station": station_id, "phase": phase,
+            "ms": round(ms), "ok": ok, "err": err,
+        })
+
+
+def _open_bytes(url, timeout, station_id, phase, headers=None, retries=1):
+    """urlopen_retry + read-all + per-phase timing (recorded via _perf)."""
+    t0 = time.time()
+    try:
+        data = urlopen_retry(url, timeout=timeout, retries=retries,
+                             backoff=0.4, headers=headers).read()
+        _perf(station_id, phase, (time.time() - t0) * 1000)
+        return data
+    except Exception as e:
+        _perf(station_id, phase, (time.time() - t0) * 1000,
+              ok=False, err=str(e)[:80])
+        raise
+
+
 # Local module: the statistically-validated water-level forecast engine.
 # Keep it stdlib-only so the Lambda stays zero-dependency.
 try:
@@ -227,8 +257,9 @@ def process_station(station_config: dict) -> dict:
     measurements_long = []
 
     try:
-        with urllib.request.urlopen(history_url, timeout=10) as response:
-            measurements = json.loads(response.read().decode("utf-8"))
+        measurements = json.loads(_open_bytes(
+            history_url, timeout=10, station_id=station_id, phase="W_P2D"))
+
         
         if measurements:
             latest = measurements[-1]
@@ -278,8 +309,8 @@ def process_station(station_config: dict) -> dict:
 
     # 1b. Fetch the long (30d) history used by the forecast engine.
     try:
-        with urllib.request.urlopen(history_long_url, timeout=15) as response:
-            measurements_long = json.loads(response.read().decode("utf-8"))
+        measurements_long = json.loads(_open_bytes(
+            history_long_url, timeout=15, station_id=station_id, phase="W_P30D"))
     except Exception as e:
         print(f"[{station_id}] Error fetching 30d history: {e}")
 
@@ -287,9 +318,9 @@ def process_station(station_config: dict) -> dict:
     discharge_m3s = None
     q_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/Q/currentmeasurement.json"
     try:
-        with urllib.request.urlopen(q_url, timeout=5) as response:
-            q_data = json.loads(response.read().decode("utf-8"))
-            discharge_m3s = q_data.get("value")
+        q_data = json.loads(_open_bytes(
+            q_url, timeout=5, station_id=station_id, phase="Q"))
+        discharge_m3s = q_data.get("value")
     except urllib.error.HTTPError as e:
         # 404 is expected for stations without Q data
         pass
@@ -308,29 +339,27 @@ def process_station(station_config: dict) -> dict:
         weather_url = f"https://api.brightsky.dev/weather?lat={lat}&lon={lon}&date={date_str}&last_date={last_date_str}"
         
         # Add a realistic User-Agent as a courtesy
-        req = urllib.request.Request(weather_url, headers={'User-Agent': 'PegelSync/1.0'})
-        with urlopen_retry(weather_url, timeout=5, retries=1, backoff=0.4,
-                           headers={'User-Agent': 'PegelSync/1.0'}) as response:
-            weather_data = json.loads(response.read().decode("utf-8"))
-            weather = weather_data.get("weather", [])
-            
-            next_24h = now_utc + timedelta(hours=24)
-            next_48h = now_utc + timedelta(hours=48)
-            
-            for w in weather:
-                ts = datetime.fromisoformat(w["timestamp"])
-                precip = w.get("precipitation", 0) or 0
-                if now_utc <= ts < next_24h:
-                    precip_next_24h_mm += precip
-                if now_utc <= ts < next_48h:
-                    precip_next_48h_mm += precip
+        weather_data = json.loads(_open_bytes(
+            weather_url, timeout=5, station_id=station_id, phase="Precip",
+            headers={'User-Agent': 'PegelSync/1.0'}, retries=1))
+        weather = weather_data.get("weather", [])
+        next_24h = now_utc + timedelta(hours=24)
+        next_48h = now_utc + timedelta(hours=48)
 
-            if precip_next_24h_mm > 10:
-                precip_condition = "heavy"
-            elif precip_next_24h_mm > 2:
-                precip_condition = "moderate"
-            elif precip_next_24h_mm > 0:
-                precip_condition = "light"
+        for w in weather:
+            ts = datetime.fromisoformat(w["timestamp"])
+            precip = w.get("precipitation", 0) or 0
+            if now_utc <= ts < next_24h:
+                precip_next_24h_mm += precip
+            if now_utc <= ts < next_48h:
+                precip_next_48h_mm += precip
+
+        if precip_next_24h_mm > 10:
+            precip_condition = "heavy"
+        elif precip_next_24h_mm > 2:
+            precip_condition = "moderate"
+        elif precip_next_24h_mm > 0:
+            precip_condition = "light"
 
     except Exception as e:
         print(f"[{station_id}] Error fetching weather forecast: {e}")
@@ -637,6 +666,11 @@ def lambda_handler(event, context):
         "total_alerts": len(alerts_list),
         "status_s3_key": status_key,
     }
+
+    # Surface per-phase fetch timings (only when PERF_DIAG=1) so the real
+    # bottleneck is visible in the Test panel without CloudWatch.
+    if PERF_DIAG and _PERF_LOG:
+        response_body["perf"] = _PERF_LOG
 
     # Include the alert S3 key only if alerts were created.
     if alert_s3_key:
