@@ -2,6 +2,10 @@ export const S3_STATUS_URL =
   "https://aryan-hydro-alerts-882611-2026.s3.eu-north-1.amazonaws.com/latest_status.json";
 export const REFRESH_INTERVAL_MS = 300_000;
 
+// Must match `basePath` in next.config.ts. Used for static assets
+// (e.g. the brand mark) that Next does not auto-rewrite under basePath.
+export const BASE_PATH = "/PegelSync";
+
 export const TILE_URLS = {
   light: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
   dark: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",

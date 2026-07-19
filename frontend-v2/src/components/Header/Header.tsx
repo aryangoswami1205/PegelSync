@@ -4,6 +4,7 @@ import { useTheme } from "../ThemeProvider";
 import { ConnectionStatus } from "@/hooks/useStationData";
 import { exportReport } from "@/lib/csv-export";
 import { SyncPayload } from "@/types";
+import { BASE_PATH } from "@/lib/constants";
 import styles from "./Header.module.css";
 
 interface HeaderProps {
@@ -21,7 +22,7 @@ export default function Header({ status, data }: HeaderProps) {
           <span className={styles.brandIcon}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/pegelsync-mark.svg"
+              src={`${BASE_PATH}/pegelsync-mark.svg`}
               alt="PegelSync"
               width={28}
               height={28}
