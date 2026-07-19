@@ -6,8 +6,7 @@ Built to replace expensive 24/7 server-based monitoring, this project leverages 
 
 ## 🖥️ Live Dashboard
 
-- **v1 (Vanilla JS + Leaflet):** https://aryangoswami1205.github.io/PegelSync/
-- **v2 (React + MapLibre, in progress):** built from `frontend-v2/`, deployed to the same GitHub Pages site.
+**PegelSync Dashboard (React + MapLibre):** https://aryangoswami1205.github.io/PegelSync/
 
 ## 🌟 Key Features
 
@@ -21,12 +20,12 @@ Built to replace expensive 24/7 server-based monitoring, this project leverages 
 - **Automated Scheduling**: triggered (default hourly) via AWS EventBridge.
 
 ### Frontend
-- **v1 — Split-Pane Spatial Workspace**: desktop layout with a dominant Leaflet.js WebGIS map and a high-density telemetry matrix — no generic card grids.
+- **React + MapLibre dashboard** (`frontend-v2/`): TypeScript, Next.js static export, MapLibre GL map, KPI strip, and a high-density telemetry matrix — no generic card grids.
   - Light / Dark theme with smooth transitions and `localStorage` persistence.
   - Bidirectional cross-highlighting between map markers and matrix rows.
   - Client-side CSV export via the `Blob` API.
   - Fully responsive with fluid breakpoints (1024 / 700 / 420px).
-- **v2 — React + MapLibre rewrite** (`frontend-v2/`): TypeScript, Next.js static export, MapLibre GL map, KPI strip, telemetry matrix, theme provider. No Deck.gl, no basin polygons, no heatmap (per-station precipitation is fine).
+  - No Deck.gl, no basin polygons, no heatmap (per-station precipitation is fine).
 
 ## 🏗️ Architecture
 
@@ -38,7 +37,7 @@ EventBridge (hourly) → AWS Lambda (lambda_function.py)
                           ↓
                      Amazon S3 (latest_status.json + alert batches)
                           ↓
-              GitHub Pages Dashboard (Leaflet.js v1 / React+MapLibre v2)
+              GitHub Pages Dashboard (React + MapLibre, built from frontend-v2/)
 ```
 
 1. **AWS EventBridge** triggers the Lambda function on schedule.
@@ -80,11 +79,7 @@ PegelSync/
 ├── providers.py                # Forecast source dispatch (local primary; EFAS-ready)
 ├── lambda_deploy.zip           # Build artifact: zip of the 3 .py files for upload (gitignored)
 ├── assets/                     # Brand marks (SVG + PNG)
-├── frontend-dashboard/         # v1 dashboard (Leaflet + Vanilla JS)
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-├── frontend-v2/                # v2 dashboard (React + MapLibre, Next.js static export)
+├── frontend-v2/                # Dashboard (React + MapLibre, Next.js static export)
 │   ├── src/
 │   ├── public/
 │   └── package.json
@@ -117,14 +112,11 @@ The Lambda is **multi-file**, so it must be deployed as a ZIP (not pasted inline
 
 ### Frontend Preview
 ```bash
-# v1
-cd frontend-dashboard && python3 -m http.server 8080
-# v2
 cd frontend-v2 && npm install && npm run dev
 ```
 
 ### Frontend Deployment
-The `frontend-dashboard/` (and `frontend-v2/` output) are deployed to the `gh-pages` branch and served via GitHub Pages.
+The `frontend-v2/` static export (`out/`) is deployed to the `gh-pages` branch and served via GitHub Pages at https://aryangoswami1205.github.io/PegelSync/.
 
 ## 🛠️ Tech Stack
 
@@ -133,9 +125,8 @@ The `frontend-dashboard/` (and `frontend-v2/` output) are deployed to the `gh-pa
 | **Cloud Infrastructure** | AWS Lambda, Amazon S3, AWS EventBridge, AWS IAM |
 | **Backend** | Python 3 (Standard Library only + boto3) |
 | **Forecast** | Local rolling-origin backtest, 90% empirical PIs (stdlib) |
-| **Frontend v1** | HTML5, CSS3, Vanilla JavaScript, Leaflet.js 1.9.4 |
-| **Frontend v2** | React, TypeScript, Next.js (static export), MapLibre GL |
-| **WebGIS** | Leaflet.js (v1) / MapLibre GL (v2) with CartoDB tile layers |
+| **Frontend** | React, TypeScript, Next.js (static export), MapLibre GL |
+| **WebGIS** | MapLibre GL with CartoDB tile layers |
 | **Data Sources** | PEGELONLINE REST API (v2), api.brightsky.dev (precipitation) |
 | **Hosting** | GitHub Pages |
 
