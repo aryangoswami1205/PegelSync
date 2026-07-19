@@ -609,6 +609,16 @@ def lambda_handler(event, context):
         "status_s3_key": status_key,
     }
 
+    # Surface EFAS diagnostic lines (only populated when EFAS_DIAGNOSTIC=1)
+    # directly in the Test response so they're visible without CloudWatch.
+    try:
+        from providers import efas_diag_lines
+        _diag = efas_diag_lines()
+        if _diag:
+            response_body["efas_diag"] = _diag
+    except Exception:
+        pass
+
     # Include the alert S3 key only if alerts were created.
     if alert_s3_key:
         response_body["alert_s3_key"] = alert_s3_key

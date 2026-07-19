@@ -46,6 +46,26 @@ import forecast as local_forecast
 # the parser can be locked to the exact field names). Off by default.
 EFAS_DIAGNOSTIC = os.environ.get("EFAS_DIAGNOSTIC") == "1"
 
+# Diagnostic lines collected during a run (only when EFAS_DIAGNOSTIC=1) and
+# surfaced in the Lambda's JSON response so they're visible in the Test panel
+# without hunting CloudWatch. Cleared at the start of each forecast_station call.
+_EFAS_DIAG_LINES = []
+
+
+def _log(msg):
+    # stdout -> CloudWatch in Lambda, AND collected for the JSON response.
+    print(msg)
+    if EFAS_DIAGNOSTIC:
+        _EFAS_DIAG_LINES.append(msg)
+
+
+def efas_diag_reset():
+    _EFAS_DIAG_LINES.clear()
+
+
+def efas_diag_lines():
+    return list(_EFAS_DIAG_LINES)
+
 # ── EFAS configuration ──────────────────────────────────────────────────────
 # Public EFAS API (Copernicus JRC). Queried by geographic coordinates, which
 # we already have for every station in STATIONS, so no station-code mapping is
@@ -58,11 +78,6 @@ EFAS_HORIZONS_H = (6, 12, 24, 48)
 
 # EFAS returns forecasts in metres above sea level (same datum as PEGELONLINE
 # "W" water level), so no unit conversion is required.
-
-
-def _log(msg):
-    # stdout -> CloudWatch in Lambda.
-    print(msg)
 
 
 def _fetch_efas_point(lat, lon, timeout=EFAS_TIMEOUT_S):
@@ -205,6 +220,9 @@ def forecast_station(station_config, measurements,
     """
     lat = station_config.get("lat")
     lon = station_config.get("lon")
+
+    if EFAS_DIAGNOSTIC:
+        efas_diag_reset()
 
     # 1) Primary: EFAS (calibrated hydrological forecast).
     if lat is not None and lon is not None:
