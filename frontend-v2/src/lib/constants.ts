@@ -1,5 +1,6 @@
 export const S3_STATUS_URL =
   "https://aryan-hydro-alerts-882611-2026.s3.eu-north-1.amazonaws.com/latest_status.json";
+export const LOCAL_STATUS_URL = "/sample_status.json";
 export const REFRESH_INTERVAL_MS = 300_000;
 
 // Must match `basePath` in next.config.ts. Used for static assets

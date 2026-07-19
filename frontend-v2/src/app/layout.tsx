@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
-
 export const metadata: Metadata = {
-  title: "PegelSync Dashboard",
-  description: "Serverless Hydrological Monitoring",
+  title: "PegelSync — Live River Telemetry & Forecast Network",
+  description:
+    "Serverless hydrological flood-risk monitoring across Germany's 5 major river basins. Real-time levels, discharge, precipitation and backtest-validated forecasts.",
 };
 
 export default function RootLayout({
@@ -18,10 +15,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrains.variable}`}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

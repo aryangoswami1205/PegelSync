@@ -15,32 +15,33 @@ interface HeaderProps {
 export default function Header({ status, data }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
 
+  const statusLabel =
+    status === "loading" ? "Syncing" : status === "error" ? "Offline" : status === "demo" ? "Demo" : "Live";
+
   return (
     <header className={styles.appHeader}>
-      <div className={styles.headerBar}>
+      <div className={`${styles.headerBar} glass`}>
         <div className={styles.brand}>
           <span className={styles.brandIcon}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${BASE_PATH}/pegelsync-mark.svg`}
               alt="PegelSync"
-              width={28}
-              height={28}
-              style={{ borderRadius: 7, display: "block" }}
+              width={30}
+              height={30}
+              style={{ borderRadius: 8, display: "block" }}
             />
           </span>
           <div className={styles.brandText}>
             <h1 className={styles.brandName}>PegelSync</h1>
-            <span className={styles.brandSub}>Live River Telemetry & Forecast Network</span>
+            <span className={styles.brandSub}>Live River Telemetry &amp; Forecast Network</span>
           </div>
         </div>
 
         <div className={styles.headerControls}>
           <span className={`${styles.sysStatus} ${styles[`sysStatus--${status}`]}`}>
             <span className={styles.sysDot}></span>
-            <span className={styles.sysLabel}>
-              {status === "loading" ? "Syncing" : status === "error" ? "Offline" : "Live"}
-            </span>
+            <span className={styles.sysLabel}>{statusLabel}</span>
           </span>
 
           <button
