@@ -1,0 +1,54 @@
+.kpiStrip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-header);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-subtle);
+  transition: background-color var(--dur-theme) var(--ease-theme);
+}
+
+.kpi {
+  text-align: center;
+}
+
+.kpiValue {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.kpiValueTs {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.kpiLabel {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-top: 0.15rem;
+  display: block;
+}
+
+.kpiDivider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}

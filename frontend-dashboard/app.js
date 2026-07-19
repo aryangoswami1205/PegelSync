@@ -244,11 +244,19 @@ async function fetchStationData() {
 function renderKPIs(data) {
   const stations = data.stations || [];
   const alertCount = stations.filter((s) => s.status === "ALERT").length;
+  const precipRiskCount = stations.filter((s) => s.precip_next_24h_mm > 10).length;
 
   DOM.kpiStations.textContent = stations.length;
   DOM.kpiAlerts.textContent = alertCount;
   DOM.kpiAlerts.style.color =
     alertCount > 0 ? "var(--status-alert)" : "var(--accent-primary)";
+    
+  const kpiPrecip = document.getElementById("kpi-precip");
+  if (kpiPrecip) {
+    kpiPrecip.textContent = precipRiskCount;
+    kpiPrecip.style.color = precipRiskCount > 0 ? "var(--status-warn)" : "var(--accent-primary)";
+  }
+
   DOM.kpiUpdated.textContent = formatTimestamp(data.generated_at);
 }
 
@@ -302,6 +310,15 @@ function renderMatrix(stations) {
           : "safe";
     const numericClass = `is-${statusClass}`;
 
+    const trend = station.trend || "stable";
+    const trendSymbol = trend === "rising" ? "↑" : trend === "falling" ? "↓" : "→";
+
+    const precip = station.precip_next_24h_mm || 0;
+    const precipCond = station.precip_condition || "dry";
+    const precipHtml = precip > 0 
+      ? `<span class="precip-badge is-${precipCond}">💧 ${precip.toFixed(1)}mm</span>` 
+      : `<span class="precip-badge" style="background:transparent;border:none">--</span>`;
+
     row.innerHTML = `
       <td class="col-status td-status">
         <span class="status-pip status-pip--${statusClass}" title="${statusKey}"></span>
@@ -311,6 +328,12 @@ function renderMatrix(stations) {
         <div class="td-station-river">${escapeHtml(river)} · ${escapeHtml(station.station_id)}</div>
       </td>
       <td class="col-level td-numeric ${numericClass}">${levelStr}<span style="font-size:0.65rem;color:var(--text-muted);margin-left:2px">m</span></td>
+      <td class="col-trend">
+        <span class="trend-arrow ${trend}">${trendSymbol}</span>
+      </td>
+      <td class="col-precip">
+        ${precipHtml}
+      </td>
       <td class="col-threshold td-threshold">${thresholdStr} m</td>
       <td class="col-gauge">
         <div class="gauge-container">
@@ -319,6 +342,9 @@ function renderMatrix(stations) {
           </div>
           <span class="gauge-pct">${pctStr}%</span>
         </div>
+      </td>
+      <td class="col-forecast td-forecast">
+        ${renderForecastCell(station)}
       </td>
       <td class="col-time td-time">${timeStr}</td>
     `;
@@ -361,6 +387,27 @@ function renderMatrix(stations) {
 
     DOM.matrixBody.appendChild(row);
   });
+}
+
+/**
+ * Render the 24h forecast cell for the matrix table.
+ * Shows the predicted 24h level + 90% prediction-interval band.
+ * Degrades gracefully when the forecast engine returned no result.
+ * @param {Object} station
+ */
+function renderForecastCell(station) {
+  if (!station.forecast_ok || station.forecast_24h_m == null) {
+    return '<span class="forecast-unavail">—</span>';
+  }
+  const f = station.forecast_24h_m.toFixed(2);
+  const lo = station.forecast_24h_lower_m;
+  const hi = station.forecast_24h_upper_m;
+  const pi =
+    lo != null && hi != null
+      ? `<span class="forecast-pi">[${lo.toFixed(2)}–${hi.toFixed(2)}]</span>`
+      : "";
+  const trustClass = station.forecast_skill ? "is-trusted" : "is-untrusted";
+  return `<span class="forecast-cell ${trustClass}">${f}<span class="forecast-unit">m</span> ${pi}</span>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -421,6 +468,13 @@ function renderMapMarkers(stations) {
         : "N/A";
     const riverMatch = station.label.match(/\(([^)]+)\)/);
     const river = riverMatch ? riverMatch[1] : "";
+    
+    const rateOfChange = station.rate_of_change_cm_hr != null 
+      ? (station.rate_of_change_cm_hr > 0 ? "+" : "") + station.rate_of_change_cm_hr.toFixed(1) + " cm/hr"
+      : "N/A";
+    const discharge = station.discharge_m3s != null
+      ? station.discharge_m3s.toFixed(1) + " m³/s"
+      : "—";
 
     const popup = L.popup({
       closeButton: false,
@@ -432,6 +486,7 @@ function renderMapMarkers(stations) {
       <div class="popup-river">${escapeHtml(river)}</div>
       <div class="popup-reading ${isAlert ? "is-alert" : "is-safe"}">${levelStr}</div>
       <div class="popup-threshold">Threshold: ${station.threshold_m.toFixed(2)} m · ${statusKey}</div>
+      <div class="popup-threshold" style="margin-top:4px; font-weight: 500">Rate: ${rateOfChange} · Discharge: ${discharge}</div>
     `);
 
     marker.bindPopup(popup);
@@ -518,6 +573,9 @@ function exportReport() {
     "Latitude",
     "Longitude",
     "Current Level (m)",
+    "Trend",
+    "Discharge (m3/s)",
+    "Precip 24h (mm)",
     "Threshold (m)",
     "Level %",
     "Status",
@@ -544,6 +602,9 @@ function exportReport() {
       s.lat ?? "",
       s.lon ?? "",
       level,
+      s.trend || "stable",
+      s.discharge_m3s != null ? s.discharge_m3s : "",
+      s.precip_next_24h_mm != null ? s.precip_next_24h_mm : "",
       threshold,
       pct,
       s.status,

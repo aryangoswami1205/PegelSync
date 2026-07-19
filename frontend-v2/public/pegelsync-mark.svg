@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PegelSync mark">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A3A86"/>
+      <stop offset="1" stop-color="#12B3C7"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0" y1="150" x2="0" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD97A"/>
+      <stop offset="1" stop-color="#F6A821"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect x="16" y="16" width="480" height="480" rx="112"/>
+    </clipPath>
+  </defs>
+
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+
+  <g clip-path="url(#round)">
+    <!-- Single bold wave anchoring the base -->
+    <path d="M16 400
+             C 120 366, 200 430, 300 410
+             C 380 394, 440 372, 496 388
+             L 496 496 L 16 496 Z"
+          fill="url(#drop)" opacity="0"/>
+    <path d="M16 404
+             C 120 372, 200 432, 300 414
+             C 384 398, 440 378, 496 394
+             L 496 496 L 16 496 Z"
+          fill="#0E6BA8" opacity="0.5"/>
+    <path d="M16 430
+             C 124 398, 204 452, 304 434
+             C 388 419, 440 400, 496 414
+             L 496 496 L 16 496 Z"
+          fill="#7FE3F0"/>
+
+    <!-- Big centered droplet + bold sync arrows -->
+    <g transform="translate(256 232)">
+      <path d="M0 -104
+               C 62 -26, 84 12, 84 56
+               A 84 84 0 1 1 -84 56
+               C -84 12, -62 -26, 0 -104 Z"
+            fill="url(#drop)" stroke="#0A3A86" stroke-width="13"/>
+      <g fill="#0A3A86">
+        <path d="M-44 -2
+                 A 46 46 0 0 1 40 -22
+                 L 40 -40 L 74 -10 L 37 12 L 37 -8
+                 A 32 32 0 0 0 -30 4 Z"/>
+        <path d="M44 38
+                 A 46 46 0 0 1 -40 58
+                 L -40 76 L -74 46 L -37 24 L -37 44
+                 A 32 32 0 0 0 30 32 Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

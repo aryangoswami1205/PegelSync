@@ -1,0 +1,144 @@
+.mapPane {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-canvas);
+}
+
+/* ── Station dot markers ──────────────────────────────────────── */
+.stationDot {
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: width 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme="dark"] .stationDot {
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.stationDotActive {
+  z-index: 10;
+}
+
+/* ── Reset View button ────────────────────────────────────────── */
+.resetControl {
+  position: absolute;
+  top: 120px;
+  left: 10px;
+  z-index: 5;
+}
+
+.resetButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.resetButton:hover {
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
+}
+
+/* ── Popup styling ────────────────────────────────────────────── */
+/* Override MapLibre popup defaults to match our theme */
+.popupWrapper :global(.maplibregl-popup-content) {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-popup) !important;
+  font-family: var(--font-sans) !important;
+  padding: 0 !important;
+}
+
+.popupWrapper :global(.maplibregl-popup-tip) {
+  border-top-color: var(--bg-surface) !important;
+}
+
+.popupInner {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.popupStation {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+
+.popupRiver {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+
+.popupReading {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.isSafe {
+  color: var(--status-safe);
+}
+
+.isAlert {
+  color: var(--status-alert);
+}
+
+.popupThreshold {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ── Phase 5 forecast block ─────────────────────────────────── */
+.popupForecast {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+.popupForecastHead {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+.popupForecastRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+.popupForecastPi {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+.popupForecastNote {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  font-style: italic;
+}

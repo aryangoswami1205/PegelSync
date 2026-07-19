@@ -17,13 +17,21 @@ in the AWS Lambda runtime.  No pip packages required.
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import urllib.request
 import urllib.error
+import concurrent.futures
 
 # We use quote to safely URL-encode German umlauts (e.g. KÖLN -> K%C3%96LN)
 from urllib.parse import quote
 import boto3
+
+# Local module: the statistically-validated water-level forecast engine.
+# Keep it stdlib-only so the Lambda stays zero-dependency.
+try:
+    import forecast as forecast_mod
+except Exception:  # pragma: no cover — forecast.py lives alongside this file
+    forecast_mod = None
 
 
 # ── Configuration ────────────────────────────────────────────────────────
@@ -159,71 +167,177 @@ S3_BUCKET_NAME = os.environ.get("ALERT_BUCKET_NAME", "aryan-hydro-alerts-882611-
 
 # ── Helper Functions ─────────────────────────────────────────────────────
 
-def fetch_current_water_level(station_id: str) -> dict:
+def process_station(station_config: dict) -> dict:
     """
-    Call the PEGELONLINE API and return a dictionary with the station name,
-    the current water level (in metres), and the timestamp of the reading.
+    Process a single station: fetch current water level, 48h history, current discharge,
+    and 48h precipitation forecast.
 
     Parameters
     ----------
-    station_id : str
-        The human-readable name of the gauging station (e.g. "KÖLN").
+    station_config : dict
+        The configuration dictionary for the station.
 
     Returns
     -------
     dict
-        {
-            "station": str,       – station name
-            "water_level_m": float, – water level converted to metres
-            "timestamp": str,     – ISO-format timestamp of the measurement
-            "unit": str           – original unit reported by the API
-        }
+        A dictionary with enriched station data including trends and forecasts.
     """
-
-    # Build the full URL to fetch the current measurement for our station.
-    # The `includeCurrentMeasurement=true` query parameter tells the API
-    # to attach the latest reading to its response.
-    #
-    # We use `quote(station_id, safe="")` to URL-encode the station name.
-    # This converts characters that are not safe in URLs:
-    #   "KÖLN"         → "K%C3%96LN"       (umlaut Ö → %C3%96)
-    #   "PASSAU DONAU" → "PASSAU%20DONAU"  (space → %20)
-    # Without encoding, the API would return a 404 error for these names.
+    station_id = station_config["station_id"]
+    lat = station_config["lat"]
+    lon = station_config["lon"]
     encoded_name = quote(station_id, safe="")
-    url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/W.json?includeCurrentMeasurement=true"
 
-    with urllib.request.urlopen(url, timeout=10) as response:
-        raw_bytes = response.read()
-        data = json.loads(raw_bytes.decode("utf-8"))
+    # 1. Fetch water-level history.
+    #   - A short (48h) window drives the in-dashboard trend / delta / rate.
+    #   - A LONG (30d) window feeds the backtest-validated forecast engine,
+    #     which needs enough history to size its prediction intervals.
+    history_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/W/measurements.json?start=P2D"
+    history_long_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/W/measurements.json?start=P30D"
+    
+    water_level_m = None
+    timestamp = "unknown"
+    unit = "cm"
+    trend = "stable"
+    delta_24h_m = 0.0
+    rate_of_change_cm_hr = 0.0
+    measurements_long = []
 
-    # The v2 API timeseries endpoint returns measurement data (unit, value,
-    # timestamp) but NOT the station's human-readable name — that lives on
-    # the station endpoint.  So we use the station_id we already have as
-    # the fallback name.
-    current_measurement = data.get("currentMeasurement", {})
+    try:
+        with urllib.request.urlopen(history_url, timeout=10) as response:
+            measurements = json.loads(response.read().decode("utf-8"))
+        
+        if measurements:
+            latest = measurements[-1]
+            raw_value = latest.get("value", 0)
+            unit = latest.get("unit", "cm")
+            timestamp = latest.get("timestamp", "unknown")
+            water_level_m = raw_value / 100.0 if unit == "cm" else raw_value
 
-    # Extract the numeric water-level value from the measurement.
-    raw_value = current_measurement.get("value", 0)
+            # Calculate trend using 24h moving average comparison
+            now_dt = datetime.fromisoformat(timestamp)
+            today_start = now_dt - timedelta(hours=24)
+            yesterday_start = now_dt - timedelta(hours=48)
 
-    # The unit reported by PEGELONLINE is typically "cm" (centimetres).
-    unit = data.get("unit", "cm")
+            today_vals = [m["value"] for m in measurements if datetime.fromisoformat(m["timestamp"]) >= today_start]
+            yesterday_vals = [m["value"] for m in measurements if yesterday_start <= datetime.fromisoformat(m["timestamp"]) < today_start]
 
-    # Convert the raw value to metres if the unit is centimetres.
-    if unit == "cm":
-        water_level_m = raw_value / 100.0  # 500 cm → 5.0 m
-    else:
-        water_level_m = raw_value  # already in metres (unlikely but safe)
+            if today_vals and yesterday_vals:
+                today_mean = sum(today_vals) / len(today_vals)
+                yesterday_mean = sum(yesterday_vals) / len(yesterday_vals)
+                diff = today_mean - yesterday_mean
+                
+                # Convert to metres if necessary for the threshold check
+                diff_m = diff / 100.0 if unit == "cm" else diff
+                
+                # We use a percentage-of-threshold or a moving average to filter out tidal noise
+                if diff_m > 0.05:
+                    trend = "rising"
+                elif diff_m < -0.05:
+                    trend = "falling"
 
-    # Extract the ISO-format timestamp string of when the reading was taken.
-    timestamp = current_measurement.get("timestamp", "unknown")
+            # Delta 24h: compare latest to exactly 24h ago
+            if today_vals:
+                first_today = today_vals[0]
+                delta_raw = raw_value - first_today
+                delta_24h_m = delta_raw / 100.0 if unit == "cm" else delta_raw
 
-    # The v2 timeseries endpoint does not include the station's longname,
-    # so we fallback to using the requested station_id.
+            # Rate of change over last 6 hours
+            six_hours_ago = now_dt - timedelta(hours=6)
+            recent_vals = [m["value"] for m in measurements if datetime.fromisoformat(m["timestamp"]) >= six_hours_ago]
+            if recent_vals and len(recent_vals) > 1:
+                first_recent = recent_vals[0]
+                # Assuming equidistant 15 min measurements, or roughly 6 hours
+                diff_cm = raw_value - first_recent if unit == "cm" else (raw_value - first_recent) * 100.0
+                rate_of_change_cm_hr = diff_cm / 6.0
+    except Exception as e:
+        print(f"[{station_id}] Error fetching water level history: {e}")
+
+    # 1b. Fetch the long (30d) history used by the forecast engine.
+    try:
+        with urllib.request.urlopen(history_long_url, timeout=15) as response:
+            measurements_long = json.loads(response.read().decode("utf-8"))
+    except Exception as e:
+        print(f"[{station_id}] Error fetching 30d history: {e}")
+
+    # 2. Fetch current discharge (Q)
+    discharge_m3s = None
+    q_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/Q/currentmeasurement.json"
+    try:
+        with urllib.request.urlopen(q_url, timeout=5) as response:
+            q_data = json.loads(response.read().decode("utf-8"))
+            discharge_m3s = q_data.get("value")
+    except urllib.error.HTTPError as e:
+        # 404 is expected for stations without Q data
+        pass
+    except Exception as e:
+        print(f"[{station_id}] Error fetching discharge: {e}")
+
+    # 3. Fetch precipitation forecast (Bright Sky API)
+    precip_next_24h_mm = 0.0
+    precip_next_48h_mm = 0.0
+    precip_condition = "dry"
+    
+    try:
+        now_utc = datetime.now(timezone.utc)
+        date_str = now_utc.strftime("%Y-%m-%d")
+        last_date_str = (now_utc + timedelta(days=2)).strftime("%Y-%m-%d")
+        weather_url = f"https://api.brightsky.dev/weather?lat={lat}&lon={lon}&date={date_str}&last_date={last_date_str}"
+        
+        # Add a realistic User-Agent as a courtesy
+        req = urllib.request.Request(weather_url, headers={'User-Agent': 'PegelSync/1.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            weather_data = json.loads(response.read().decode("utf-8"))
+            weather = weather_data.get("weather", [])
+            
+            next_24h = now_utc + timedelta(hours=24)
+            next_48h = now_utc + timedelta(hours=48)
+            
+            for w in weather:
+                ts = datetime.fromisoformat(w["timestamp"])
+                precip = w.get("precipitation", 0) or 0
+                if now_utc <= ts < next_24h:
+                    precip_next_24h_mm += precip
+                if now_utc <= ts < next_48h:
+                    precip_next_48h_mm += precip
+
+            if precip_next_24h_mm > 10:
+                precip_condition = "heavy"
+            elif precip_next_24h_mm > 2:
+                precip_condition = "moderate"
+            elif precip_next_24h_mm > 0:
+                precip_condition = "light"
+
+    except Exception as e:
+        print(f"[{station_id}] Error fetching weather forecast: {e}")
+
+    # 4. Forecast (Phase 5): backtest-validated level prediction + 90% PIs.
+    #    Runs purely on stdlib; degrades to forecast_ok=False if we lack data.
+    forecast_fields = {}
+    if forecast_mod is not None and measurements_long:
+        try:
+            forecast_fields = forecast_mod.forecast_station_payload(
+                station_config, measurements_long,
+                precip_24h_mm=precip_next_24h_mm,
+                precip_48h_mm=precip_next_48h_mm,
+            )
+        except Exception as e:
+            print(f"[{station_id}] Forecasting failed: {e}")
+            forecast_fields = {"forecast_ok": False, "forecast_skill": False}
+
     return {
         "station": station_id,
+        "label": station_config["label"],
         "water_level_m": water_level_m,
         "timestamp": timestamp,
         "unit": unit,
+        "trend": trend,
+        "delta_24h_m": round(delta_24h_m, 2),
+        "rate_of_change_cm_hr": round(rate_of_change_cm_hr, 1),
+        "discharge_m3s": discharge_m3s,
+        "precip_next_24h_mm": round(precip_next_24h_mm, 1),
+        "precip_next_48h_mm": round(precip_next_48h_mm, 1),
+        "precip_condition": precip_condition,
+        **forecast_fields,
     }
 
 
@@ -384,63 +498,93 @@ def lambda_handler(event, context):
     alerts_list = []
     all_stations_status = []
 
-    # ── Step 1: Loop through every monitored station ─────────────────
-    for station_config in MONITORED_STATIONS:
-
-        station_id = station_config["station_id"]
-        label      = station_config["label"]
-        threshold  = station_config["threshold_m"]
-        lat        = station_config["lat"]
-        lon        = station_config["lon"]
-
-        print(f"📡 [{label}] Fetching water level for station: {station_id} …")
-
-        # Catch individual station failures to prevent the entire invocation from failing
+    # ── Step 1: Process all stations concurrently ────────────────────────
+    def fetch_and_evaluate(station_config):
+        label = station_config["label"]
+        threshold = station_config["threshold_m"]
+        print(f"📡 [{label}] Fetching data (W, Q, Precip) …")
+        
         try:
-            station_data = fetch_current_water_level(station_id)
-        except Exception as exc:
-            print(f"   ❌ Failed to fetch data for {label}: {exc}")
+            station_data = process_station(station_config)
+            
+            # If water_level_m is None, something failed
+            if station_data["water_level_m"] is None:
+                raise ValueError("Failed to retrieve water level data.")
 
-            all_stations_status.append({
+            is_alert = station_data["water_level_m"] > threshold
+            
+            # Base status entry from the static config + live measurements.
+            status_entry = {
                 "label": label,
-                "station_id": station_id,
-                "water_level_m": None,
+                "station_id": station_config["station_id"],
                 "threshold_m": threshold,
-                "lat": lat,
-                "lon": lon,
-                "measurement_timestamp": None,
+                "lat": station_config["lat"],
+                "lon": station_config["lon"],
+                "status": "ALERT" if is_alert else "SAFE",
+                "water_level_m": station_data["water_level_m"],
+                "measurement_timestamp": station_data["timestamp"],
+                "trend": station_data["trend"],
+                "delta_24h_m": station_data["delta_24h_m"],
+                "rate_of_change_cm_hr": station_data["rate_of_change_cm_hr"],
+                "discharge_m3s": station_data["discharge_m3s"],
+                "precip_next_24h_mm": station_data["precip_next_24h_mm"],
+                "precip_next_48h_mm": station_data["precip_next_48h_mm"],
+                "precip_condition": station_data["precip_condition"],
+            }
+            # Merge the forecast engine's fields (keys prefixed forecast_* plus
+            # forecast_n / forecast_phi / forecast_drift_m_per_h), if present.
+            for k, v in station_data.items():
+                if k.startswith("forecast_"):
+                    status_entry[k] = v
+            
+            alert_payload = None
+            if is_alert:
+                alert_payload = build_alert_payload(station_data, threshold)
+                
+            return (status_entry, alert_payload, None)
+            
+        except Exception as exc:
+            print(f"   ❌ Failed to process {label}: {exc}")
+            error_entry = {
+                "label": label,
+                "station_id": station_config["station_id"],
+                "threshold_m": threshold,
+                "lat": station_config["lat"],
+                "lon": station_config["lon"],
                 "status": "ERROR",
                 "message": str(exc),
-            })
-            continue
+                "water_level_m": None,
+                "measurement_timestamp": None,
+                "trend": "stable",
+                "delta_24h_m": 0.0,
+                "rate_of_change_cm_hr": 0.0,
+                "discharge_m3s": None,
+                "precip_next_24h_mm": 0.0,
+                "precip_next_48h_mm": 0.0,
+                "precip_condition": "dry",
+                "forecast_ok": False,
+                "forecast_skill": False,
+                "forecast_phi": None,
+                "forecast_drift_m_per_h": None,
+                "forecast_6h_m": None, "forecast_12h_m": None,
+                "forecast_24h_m": None, "forecast_48h_m": None,
+                "forecast_6h_lower_m": None, "forecast_6h_upper_m": None,
+                "forecast_24h_lower_m": None, "forecast_24h_upper_m": None,
+                "forecast_n": 0,
+            }
+            return (error_entry, None, str(exc))
 
-        print(
-            f"   Station   : {station_data['station']}\n"
-            f"   Level     : {station_data['water_level_m']:.2f} m\n"
-            f"   Threshold : {threshold:.2f} m\n"
-            f"   Time      : {station_data['timestamp']}"
-        )
+    # Execute concurrent requests
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(fetch_and_evaluate, MONITORED_STATIONS)
 
-        # ── Step 2: Check against this station's threshold ───────────
-        is_alert = station_data["water_level_m"] > threshold
-
-        if is_alert:
-            print(f"   🚨 Threshold exceeded at {label}! Generating alert …")
-            alert_payload = build_alert_payload(station_data, threshold)
+    for status_entry, alert_payload, error in results:
+        all_stations_status.append(status_entry)
+        if alert_payload:
             alerts_list.append(alert_payload)
-        else:
-            print(f"   ✅ {label} is within safe limits.")
-
-        all_stations_status.append({
-            "label": label,
-            "station_id": station_id,
-            "water_level_m": station_data["water_level_m"],
-            "threshold_m": threshold,
-            "lat": lat,
-            "lon": lon,
-            "measurement_timestamp": station_data["timestamp"],
-            "status": "ALERT" if is_alert else "SAFE",
-        })
+            print(f"   🚨 Threshold exceeded at {status_entry['label']}! Alert generated.")
+        elif not error:
+            print(f"   ✅ {status_entry['label']} processed successfully. Level: {status_entry['water_level_m']:.2f}m")
 
     # ── Step 3: Save combined alerts to S3 (only if any exist) ───────
     alert_s3_key = None
@@ -481,6 +625,13 @@ if __name__ == "__main__":
     print("  PegelSync — Multi-Station Local Test Run")
     print(f"  Monitoring {len(MONITORED_STATIONS)} station(s)")
     print("=" * 60)
+
+    # Mock S3 for local testing to avoid needing AWS credentials
+    import boto3
+    class MockS3:
+        def put_object(self, *args, **kwargs):
+            pass
+    boto3.client = lambda *args, **kwargs: MockS3()
 
     try:
         result = lambda_handler(event={}, context=None)
