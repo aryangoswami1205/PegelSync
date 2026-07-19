@@ -256,39 +256,16 @@ def forecast_station_payload(station_config, measurements,
     """
     High-level helper used by the Lambda: given raw PEGELONLINE measurements
     for one station, return the forecast fields to merge into its status entry.
-    Returns {} if there isn't enough history.
-    """
-    times, values = measurements_to_arrays(measurements)
-    fit = fit_forecast(times, values, precip_24h_mm, precip_48h_mm)
-    if not fit["ok"]:
-        return {
-            "forecast_ok": False,
-            "forecast_skill": False,
-            "forecast_phi": None,
-            "forecast_drift_m_per_h": None,
-            "forecast_6h_m": None, "forecast_12h_m": None,
-            "forecast_24h_m": None, "forecast_48h_m": None,
-            "forecast_6h_lower_m": None, "forecast_6h_upper_m": None,
-            "forecast_24h_lower_m": None, "forecast_24h_upper_m": None,
-            "forecast_n": fit["n"],
-        }
 
-    f = fit["forecasts"]
-    return {
-        "forecast_ok": True,
-        "forecast_skill": fit["skill"],
-        "forecast_phi": fit["phi"],
-        "forecast_drift_m_per_h": fit["drift_m_per_h"],
-        "forecast_6h_m": f[6]["mean_m"],
-        "forecast_12h_m": f[12]["mean_m"],
-        "forecast_24h_m": f[24]["mean_m"],
-        "forecast_48h_m": f[48]["mean_m"],
-        "forecast_6h_lower_m": f[6]["lower_m"],
-        "forecast_6h_upper_m": f[6]["upper_m"],
-        "forecast_24h_lower_m": f[24]["lower_m"],
-        "forecast_24h_upper_m": f[24]["upper_m"],
-        "forecast_n": fit["n"],
-    }
+    Delegates to `providers.forecast_station`, which uses the calibrated EFAS
+    hydrological forecast as the primary source and falls back to this local
+    statistical model when EFAS is unavailable. Field names are unchanged so
+    the rest of the pipeline (Lambda, UIs) is unaffected.
+
+    Returns {} if even the fallback has insufficient data.
+    """
+    from providers import forecast_station as _fs
+    return _fs(station_config, measurements, precip_24h_mm, precip_48h_mm)
 
 
 # ── Validation: rolling-origin backtest ─────────────────────────────────────

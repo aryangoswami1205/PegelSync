@@ -16,6 +16,7 @@ export interface Station {
   // ── Phase 5: forecast (level in metres + 90% prediction interval) ──
   forecast_ok: boolean;
   forecast_skill: boolean;
+  forecast_source: "efas" | "local";
   forecast_phi: number | null;
   forecast_drift_m_per_h: number | null;
   forecast_6h_m: number | null;

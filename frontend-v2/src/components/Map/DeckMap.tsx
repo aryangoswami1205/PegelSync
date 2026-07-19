@@ -218,6 +218,10 @@ function PopupContent({ station }: { station: Station }) {
   const f24lo = station.forecast_24h_lower_m;
   const f24hi = station.forecast_24h_upper_m;
   const trusted = station.forecast_ok && station.forecast_skill;
+  const sourceLabel =
+    station.forecast_source === "efas"
+      ? "EFAS (calibrated)"
+      : "Local model";
 
   return (
     <div className={styles.popupInner}>
@@ -258,7 +262,7 @@ function PopupContent({ station }: { station: Station }) {
               </span>
             </div>
             <div className={styles.popupForecastNote}>
-              90% prediction interval
+              90% prediction interval · {sourceLabel}
             </div>
           </>
         ) : (

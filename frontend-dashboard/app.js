@@ -407,7 +407,8 @@ function renderForecastCell(station) {
       ? `<span class="forecast-pi">[${lo.toFixed(2)}–${hi.toFixed(2)}]</span>`
       : "";
   const trustClass = station.forecast_skill ? "is-trusted" : "is-untrusted";
-  return `<span class="forecast-cell ${trustClass}">${f}<span class="forecast-unit">m</span> ${pi}</span>`;
+  const src = station.forecast_source === "efas" ? "EFAS" : "local";
+  return `<span class="forecast-cell ${trustClass}">${f}<span class="forecast-unit">m</span> ${pi}<span class="forecast-src">${src}</span></span>`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

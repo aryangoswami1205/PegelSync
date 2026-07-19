@@ -564,6 +564,7 @@ def lambda_handler(event, context):
                 "precip_condition": "dry",
                 "forecast_ok": False,
                 "forecast_skill": False,
+                "forecast_source": "local",
                 "forecast_phi": None,
                 "forecast_drift_m_per_h": None,
                 "forecast_6h_m": None, "forecast_12h_m": None,
