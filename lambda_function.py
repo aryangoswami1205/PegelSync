@@ -643,12 +643,16 @@ def lambda_handler(event, context):
             }
             return (error_entry, None, str(exc))
 
-    # Execute concurrent requests
-    # Bumped 5 -> 12: with 15 stations and 4 live API calls each, 5 workers
-    # forced 3 serial batches (~19s). 12 workers run them in ~2 batches
-    # (~7s). Bright Sky's free tier (~20 req/min) is protected by the
-    # retry/backoff below, so brief 429s are absorbed rather than failing.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+    # Execute concurrent requests.
+    # max_workers=5 (was 12): with the nested 3-thread fetch pool inside each
+    # station, 12 outer workers meant up to ~45 live threads. On a 128MB
+    # Lambda (~0.07 vCPU) that starves the CPU on thread scheduling and the
+    # run stretches to ~21s (2.5x the network floor). 5 outer x 3 inner = ~15
+    # threads max, matching the per-host semaphores, so the vCPU isn't thrashing.
+    # The OTHER key lever is Lambda MEMORY: AWS grants CPU proportional to
+    # memory, so 512MB (~0.29 vCPU) cuts threaded-run time ~3x with zero code
+    # change. Bump it in the console.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         results = executor.map(fetch_and_evaluate, MONITORED_STATIONS)
 
     for status_entry, alert_payload, error in results:
