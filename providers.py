@@ -33,11 +33,18 @@ The Lambda merges this into the station status entry and tags the source in
 
 import json
 import math
+import os
 import urllib.request
 import urllib.error
 
 # Local statistical model (stdlib-only) — used as the fallback.
 import forecast as local_forecast
+
+# When this env var is set (e.g. EFAS_DIAGNOSTIC=1), the Lambda logs the
+# raw EFAS HTTP status + a trimmed response body per station. Use it ONCE in
+# AWS to capture the real EFAS schema (then send the log to the assistant so
+# the parser can be locked to the exact field names). Off by default.
+EFAS_DIAGNOSTIC = os.environ.get("EFAS_DIAGNOSTIC") == "1"
 
 # ── EFAS configuration ──────────────────────────────────────────────────────
 # Public EFAS API (Copernicus JRC). Queried by geographic coordinates, which
@@ -53,6 +60,11 @@ EFAS_HORIZONS_H = (6, 12, 24, 48)
 # "W" water level), so no unit conversion is required.
 
 
+def _log(msg):
+    # stdout -> CloudWatch in Lambda.
+    print(msg)
+
+
 def _fetch_efas_point(lat, lon, timeout=EFAS_TIMEOUT_S):
     """Fetch the raw EFAS point/station forecast JSON for (lat, lon).
 
@@ -63,12 +75,23 @@ def _fetch_efas_point(lat, lon, timeout=EFAS_TIMEOUT_S):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "PegelSync/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            status = getattr(resp, "status", resp.getcode())
+            body = resp.read().decode("utf-8")
+            data = json.loads(body)
+        if EFAS_DIAGNOSTIC:
+            _log(f"[EFAS-DIAG] lat={lat} lon={lon} status={status} "
+                 f"bytes={len(body)} preview={body[:600]!r}")
         if not isinstance(data, dict) or not data:
             return None
         return data
-    except Exception:
-        # Timeout, HTTPError, JSONDecodeError, connection error, etc.
+    except urllib.error.HTTPError as e:
+        if EFAS_DIAGNOSTIC:
+            _log(f"[EFAS-DIAG] lat={lat} lon={lon} HTTPError={e.code} "
+                 f"body={(e.read().decode('utf-8', 'replace') or '')[:400]!r}")
+        return None
+    except Exception as e:
+        if EFAS_DIAGNOSTIC:
+            _log(f"[EFAS-DIAG] lat={lat} lon={lon} ERROR={type(e).__name__}: {e}")
         return None
 
 
