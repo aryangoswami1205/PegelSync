@@ -241,13 +241,18 @@ def process_station(station_config: dict) -> dict:
     lon = station_config["lon"]
     encoded_name = quote(station_id, safe="")
 
-    # 1. Fetch water-level history.
-    #   - A short (48h) window drives the in-dashboard trend / delta / rate.
-    #   - A LONG (30d) window feeds the backtest-validated forecast engine,
-    #     which needs enough history to size its prediction intervals.
-    history_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/W/measurements.json?start=P2D"
+    # ── Fetch strategy (parallel) ──────────────────────────────────────────
+    # The 4 external calls used to run SERIALLY inside each station (~6s of
+    # blocking I/O), which is why raising the OUTER worker count did nothing.
+    # Here we (a) MERGE the two PEGELONLINE W calls into one 30d fetch — the
+    # 48h trend/delta/rate are derived from that superset — and (b) run the
+    # three independent calls (long history, discharge Q, Bright Sky precip)
+    # CONCURRENTLY in a tiny thread pool. A station now blocks only as long as
+    # its single slowest call (~1.6s) instead of their sum.
+
     history_long_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/W/measurements.json?start=P30D"
-    
+    q_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/Q/currentmeasurement.json"
+
     water_level_m = None
     timestamp = "unknown"
     unit = "cm"
@@ -255,114 +260,102 @@ def process_station(station_config: dict) -> dict:
     delta_24h_m = 0.0
     rate_of_change_cm_hr = 0.0
     measurements_long = []
-
-    try:
-        measurements = json.loads(_open_bytes(
-            history_url, timeout=10, station_id=station_id, phase="W_P2D"))
-
-        
-        if measurements:
-            latest = measurements[-1]
-            raw_value = latest.get("value", 0)
-            unit = latest.get("unit", "cm")
-            timestamp = latest.get("timestamp", "unknown")
-            water_level_m = raw_value / 100.0 if unit == "cm" else raw_value
-
-            # Calculate trend using 24h moving average comparison
-            now_dt = datetime.fromisoformat(timestamp)
-            today_start = now_dt - timedelta(hours=24)
-            yesterday_start = now_dt - timedelta(hours=48)
-
-            today_vals = [m["value"] for m in measurements if datetime.fromisoformat(m["timestamp"]) >= today_start]
-            yesterday_vals = [m["value"] for m in measurements if yesterday_start <= datetime.fromisoformat(m["timestamp"]) < today_start]
-
-            if today_vals and yesterday_vals:
-                today_mean = sum(today_vals) / len(today_vals)
-                yesterday_mean = sum(yesterday_vals) / len(yesterday_vals)
-                diff = today_mean - yesterday_mean
-                
-                # Convert to metres if necessary for the threshold check
-                diff_m = diff / 100.0 if unit == "cm" else diff
-                
-                # We use a percentage-of-threshold or a moving average to filter out tidal noise
-                if diff_m > 0.05:
-                    trend = "rising"
-                elif diff_m < -0.05:
-                    trend = "falling"
-
-            # Delta 24h: compare latest to exactly 24h ago
-            if today_vals:
-                first_today = today_vals[0]
-                delta_raw = raw_value - first_today
-                delta_24h_m = delta_raw / 100.0 if unit == "cm" else delta_raw
-
-            # Rate of change over last 6 hours
-            six_hours_ago = now_dt - timedelta(hours=6)
-            recent_vals = [m["value"] for m in measurements if datetime.fromisoformat(m["timestamp"]) >= six_hours_ago]
-            if recent_vals and len(recent_vals) > 1:
-                first_recent = recent_vals[0]
-                # Assuming equidistant 15 min measurements, or roughly 6 hours
-                diff_cm = raw_value - first_recent if unit == "cm" else (raw_value - first_recent) * 100.0
-                rate_of_change_cm_hr = diff_cm / 6.0
-    except Exception as e:
-        print(f"[{station_id}] Error fetching water level history: {e}")
-
-    # 1b. Fetch the long (30d) history used by the forecast engine.
-    try:
-        measurements_long = json.loads(_open_bytes(
-            history_long_url, timeout=15, station_id=station_id, phase="W_P30D"))
-    except Exception as e:
-        print(f"[{station_id}] Error fetching 30d history: {e}")
-
-    # 2. Fetch current discharge (Q)
     discharge_m3s = None
-    q_url = f"{PEGELONLINE_BASE_URL}/stations/{encoded_name}/Q/currentmeasurement.json"
-    try:
-        q_data = json.loads(_open_bytes(
-            q_url, timeout=5, station_id=station_id, phase="Q"))
-        discharge_m3s = q_data.get("value")
-    except urllib.error.HTTPError as e:
-        # 404 is expected for stations without Q data
-        pass
-    except Exception as e:
-        print(f"[{station_id}] Error fetching discharge: {e}")
-
-    # 3. Fetch precipitation forecast (Bright Sky API)
     precip_next_24h_mm = 0.0
     precip_next_48h_mm = 0.0
     precip_condition = "dry"
-    
-    try:
-        now_utc = datetime.now(timezone.utc)
-        date_str = now_utc.strftime("%Y-%m-%d")
-        last_date_str = (now_utc + timedelta(days=2)).strftime("%Y-%m-%d")
-        weather_url = f"https://api.brightsky.dev/weather?lat={lat}&lon={lon}&date={date_str}&last_date={last_date_str}"
-        
-        # Add a realistic User-Agent as a courtesy
-        weather_data = json.loads(_open_bytes(
-            weather_url, timeout=5, station_id=station_id, phase="Precip",
-            headers={'User-Agent': 'PegelSync/1.0'}, retries=1))
-        weather = weather_data.get("weather", [])
-        next_24h = now_utc + timedelta(hours=24)
-        next_48h = now_utc + timedelta(hours=48)
 
-        for w in weather:
-            ts = datetime.fromisoformat(w["timestamp"])
-            precip = w.get("precipitation", 0) or 0
-            if now_utc <= ts < next_24h:
-                precip_next_24h_mm += precip
-            if now_utc <= ts < next_48h:
-                precip_next_48h_mm += precip
+    def _get_long():
+        return json.loads(_open_bytes(history_long_url, timeout=15,
+                                      station_id=station_id, phase="W_P30D"))
 
-        if precip_next_24h_mm > 10:
-            precip_condition = "heavy"
-        elif precip_next_24h_mm > 2:
-            precip_condition = "moderate"
-        elif precip_next_24h_mm > 0:
-            precip_condition = "light"
+    def _get_q():
+        try:
+            return json.loads(_open_bytes(q_url, timeout=5,
+                                          station_id=station_id, phase="Q"))
+        except urllib.error.HTTPError:
+            return None  # 404 is expected for stations without Q
+        except Exception as e:
+            print(f"[{station_id}] Error fetching discharge: {e}")
+            return None
 
-    except Exception as e:
-        print(f"[{station_id}] Error fetching weather forecast: {e}")
+    def _get_precip():
+        try:
+            now_utc = datetime.now(timezone.utc)
+            date_str = now_utc.strftime("%Y-%m-%d")
+            last_date_str = (now_utc + timedelta(days=2)).strftime("%Y-%m-%d")
+            weather_url = (f"https://api.brightsky.dev/weather?lat={lat}&lon={lon}"
+                           f"&date={date_str}&last_date={last_date_str}")
+            # Best-effort: Bright Sky is a small free service that throttles
+            # under parallel load. One short retry keeps us resilient without
+            # letting a slow response stretch the whole wave.
+            wd = json.loads(_open_bytes(weather_url, timeout=5,
+                                        station_id=station_id, phase="Precip",
+                                        headers={'User-Agent': 'PegelSync/1.0'},
+                                        retries=1))
+            weather = wd.get("weather", [])
+            n24 = now_utc + timedelta(hours=24)
+            n48 = now_utc + timedelta(hours=48)
+            p24 = p48 = 0.0
+            for w in weather:
+                ts = datetime.fromisoformat(w["timestamp"])
+                p = w.get("precipitation", 0) or 0
+                if now_utc <= ts < n24:
+                    p24 += p
+                if now_utc <= ts < n48:
+                    p48 += p
+            cond = ("heavy" if p24 > 10 else "moderate" if p24 > 2
+                    else "light" if p24 > 0 else "dry")
+            return p24, p48, cond
+        except Exception as e:
+            print(f"[{station_id}] Error fetching weather forecast: {e}")
+            return 0.0, 0.0, "dry"
+
+    # Run the three independent fetches in parallel.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+        f_long = ex.submit(_get_long)
+        f_q = ex.submit(_get_q)
+        f_p = ex.submit(_get_precip)
+        try:
+            measurements_long = f_long.result()
+        except Exception as e:
+            print(f"[{station_id}] Error fetching 30d history: {e}")
+            measurements_long = []
+        q_data = f_q.result()
+        discharge_m3s = q_data.get("value") if q_data else None
+        precip_next_24h_mm, precip_next_48h_mm, precip_condition = f_p.result()
+
+    # Derive trend / delta / rate from the 30d history (last 48h / 6h windows).
+    if measurements_long:
+        latest = measurements_long[-1]
+        raw_value = latest.get("value", 0)
+        unit = latest.get("unit", "cm")
+        timestamp = latest.get("timestamp", "unknown")
+        water_level_m = raw_value / 100.0 if unit == "cm" else raw_value
+
+        now_dt = datetime.fromisoformat(timestamp)
+        today_start = now_dt - timedelta(hours=24)
+        yesterday_start = now_dt - timedelta(hours=48)
+        today_vals = [m["value"] for m in measurements_long
+                      if datetime.fromisoformat(m["timestamp"]) >= today_start]
+        yesterday_vals = [m["value"] for m in measurements_long
+                          if yesterday_start <= datetime.fromisoformat(m["timestamp"]) < today_start]
+        if today_vals and yesterday_vals:
+            diff = sum(today_vals) / len(today_vals) - sum(yesterday_vals) / len(yesterday_vals)
+            diff_m = diff / 100.0 if unit == "cm" else diff
+            if diff_m > 0.05:
+                trend = "rising"
+            elif diff_m < -0.05:
+                trend = "falling"
+        if today_vals:
+            delta_raw = raw_value - today_vals[0]
+            delta_24h_m = delta_raw / 100.0 if unit == "cm" else delta_raw
+        six_hours_ago = now_dt - timedelta(hours=6)
+        recent_vals = [m["value"] for m in measurements_long
+                       if datetime.fromisoformat(m["timestamp"]) >= six_hours_ago]
+        if recent_vals and len(recent_vals) > 1:
+            diff_cm = raw_value - recent_vals[0] if unit == "cm" else (raw_value - recent_vals[0]) * 100.0
+            rate_of_change_cm_hr = diff_cm / 6.0
 
     # 4. Forecast (Phase 5): backtest-validated level prediction + 90% PIs.
     #    Runs purely on stdlib; degrades to forecast_ok=False if we lack data.
