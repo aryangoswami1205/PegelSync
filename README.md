@@ -2,43 +2,54 @@
 
 **PegelSync** is a zero-dependency, cloud-native microservice and dashboard that monitors real-time river gauge data across Germany's 5 major river basins and generates automated flood risk alerts.
 
-Built to replace expensive 24/7 server-based monitoring, this project leverages AWS Serverless technologies to achieve a highly scalable, fault-tolerant system that costs $0.00/month to run under the AWS Free Tier.
+Built to replace expensive 24/7 server-based monitoring, this project leverages AWS Serverless technologies to achieve a highly scalable, fault-tolerant system that costs **$0.00/month** to run under the AWS Free Tier.
 
 ## 🖥️ Live Dashboard
 
-**[View the Live Dashboard →](https://aryangoswami1205.github.io/PegelSync/)**
+- **v1 (Vanilla JS + Leaflet):** https://aryangoswami1205.github.io/PegelSync/
+- **v2 (React + MapLibre, in progress):** built from `frontend-v2/`, deployed to the same GitHub Pages site.
 
 ## 🌟 Key Features
 
-### Backend
-- **Zero-Dependency Lambda**: Built using purely Python standard libraries (`urllib`, `json`, `urllib.parse`). No pip packages, no deployment ZIP, minimal cold-start.
-- **15-Station National Network**: Monitors gauges across 5 major basins — Rhine, Danube, Elbe, Weser, and Oder — with URL-encoded API calls for safe handling of German umlauts (Ö, Ü) and special characters.
-- **Fault-Tolerant Execution**: Per-station `try/except` isolation — if one station goes offline, the other 14 continue to process.
-- **Automated Scheduling**: Triggered hourly via AWS EventBridge.
+### Backend (AWS Lambda)
+- **Zero third-party dependencies**: the Lambda uses ONLY Python standard libraries plus `boto3` (pre-installed in the AWS runtime). No pip packages at runtime.
+- **Multi-file deploy as a ZIP**: `lambda_function.py` imports `forecast` and `providers`; all three are zipped and uploaded via the console (inline paste breaks the cross-file imports).
+- **Statistically-validated forecast engine** (`forecast.py`): a rolling-origin backtest against persistence, with 90% empirical prediction intervals and an explicit skill gate — so untrustworthy forecasts are flagged rather than over-claimed. Not a black box.
+- **15-Station National Network**: monitors gauges across 5 major basins — Rhine, Danube, Elbe, Weser, and Oder — with URL-encoded API calls for safe handling of German umlauts (Ö, Ü).
+- **Fault-Tolerant Execution**: per-station `try/except` isolation — if one station goes offline, the other 14 continue to process.
+- **Tuned for speed**: per-host connection caps + bounded worker pool + **512 MB Lambda memory** (AWS grants CPU proportional to memory) bring a full 15-station / 3-API run to **~7s** (was ~22s at 128 MB).
+- **Automated Scheduling**: triggered (default hourly) via AWS EventBridge.
 
 ### Frontend
-- **Split-Pane Spatial Workspace**: Desktop layout with a dominant Leaflet.js WebGIS map and a high-density telemetry data matrix — no generic card grids.
-- **Light / Dark Theme**: Smooth `0.4s` cubic-bezier transitions with `localStorage` persistence. Map tile layers swap dynamically between CartoDB Positron (light) and Dark Matter (dark).
-- **Bidirectional Cross-Highlighting**: Hover a map marker → the matching matrix row highlights and siblings dim. Hover a matrix row → the corresponding map marker enlarges and opens its popup.
-- **Client-Side CSV Export**: One-click report download using the `Blob` API — zero backend required.
-- **Reset View Control**: Custom Leaflet control button to instantly restore the optimal map zoom showing all stations.
-- **Fully Responsive**: Fluid breakpoints at 1024px (tablet), 700px (mobile), and 420px (small mobile). Map pins to the top on mobile with the matrix scrolling below.
+- **v1 — Split-Pane Spatial Workspace**: desktop layout with a dominant Leaflet.js WebGIS map and a high-density telemetry matrix — no generic card grids.
+  - Light / Dark theme with smooth transitions and `localStorage` persistence.
+  - Bidirectional cross-highlighting between map markers and matrix rows.
+  - Client-side CSV export via the `Blob` API.
+  - Fully responsive with fluid breakpoints (1024 / 700 / 420px).
+- **v2 — React + MapLibre rewrite** (`frontend-v2/`): TypeScript, Next.js static export, MapLibre GL map, KPI strip, telemetry matrix, theme provider. No Deck.gl, no basin polygons, no heatmap (per-station precipitation is fine).
 
 ## 🏗️ Architecture
 
 ```
-EventBridge (hourly) → AWS Lambda → PEGELONLINE REST API (v2)
+EventBridge (hourly) → AWS Lambda (lambda_function.py)
+                          │  ├─ PEGELONLINE REST API (v2)   → water level + discharge (Q)
+                          │  ├─ api.brightsky.dev           → precipitation forecast
+                          │  └─ forecast.py / providers.py  → local 48h-ahead level forecast + 90% PIs
                           ↓
                      Amazon S3 (latest_status.json + alert batches)
                           ↓
-              GitHub Pages Dashboard (Leaflet.js + Vanilla JS)
+              GitHub Pages Dashboard (Leaflet.js v1 / React+MapLibre v2)
 ```
 
-1. **AWS EventBridge** triggers the Lambda function every hour.
-2. **AWS Lambda** iterates over 15 monitored stations, URL-encoding each station name before calling the PEGELONLINE API.
-3. If a station's water level exceeds its defined threshold, an alert payload is appended to a batch.
-4. **Amazon S3** stores timestamped alert batches and a continuously updated `latest_status.json`.
-5. The **Frontend Dashboard** (GitHub Pages) fetches `latest_status.json` via CORS and renders the interactive map, telemetry matrix, and KPI indicators.
+1. **AWS EventBridge** triggers the Lambda function on schedule.
+2. **AWS Lambda** iterates over 15 monitored stations, URL-encoding each station name, and fetches water level, discharge, and precipitation in parallel (per-host concurrency capped to avoid upstream throttling).
+3. The **forecast engine** (`forecast.py`) produces a backtest-validated level prediction with 90% prediction intervals per station.
+4. If a station's water level exceeds its defined threshold, an alert payload is written to S3.
+5. **Amazon S3** stores a continuously updated `latest_status.json`.
+6. The **Frontend Dashboard** (GitHub Pages) fetches `latest_status.json` and renders the interactive map, telemetry matrix, and KPI indicators.
+
+### Forecast source note (EFAS)
+The original goal was to use the EFAS / NHW calibrated hydrological forecast as the primary source. The anonymous EFAS REST API (`efas.forest.jrc.ec.europa.eu`) is **now decommissioned** — it fails DNS resolution even from AWS Lambda. Adopting EFAS today would require a Copernicus CDS account + API key + the `cdsapi` dependency + grid interpolation, which conflicts with the zero-dependency, paste-in Lambda design. The local statistical model (`forecast.py`) is therefore the **primary and only** forecast source; `forecast_source` is recorded per station so a future authoritative feed can be slotted in without touching the Lambda or either UI.
 
 ## 📡 Monitored Stations (15)
 
@@ -64,11 +75,19 @@ EventBridge (hourly) → AWS Lambda → PEGELONLINE REST API (v2)
 
 ```
 PegelSync/
-├── lambda_function.py          # AWS Lambda backend (15-station network)
-├── frontend-dashboard/
-│   ├── index.html              # Split-pane spatial layout + theme toggle
-│   ├── styles.css              # CSS design system with light/dark tokens
-│   └── app.js                  # Leaflet map, matrix rendering, cross-highlighting, CSV export
+├── lambda_function.py          # AWS Lambda backend (15-station network + alerting)
+├── forecast.py                 # Statistically-validated level forecast engine
+├── providers.py                # Forecast source dispatch (local primary; EFAS-ready)
+├── lambda_deploy.zip           # Build artifact: zip of the 3 .py files for upload (gitignored)
+├── assets/                     # Brand marks (SVG + PNG)
+├── frontend-dashboard/         # v1 dashboard (Leaflet + Vanilla JS)
+│   ├── index.html
+│   ├── styles.css
+│   └── app.js
+├── frontend-v2/                # v2 dashboard (React + MapLibre, Next.js static export)
+│   ├── src/
+│   ├── public/
+│   └── package.json
 ├── Dockerfile                  # Local Lambda testing container
 ├── requirements.txt            # boto3 for local testing (pre-installed on AWS)
 └── README.md
@@ -83,29 +102,41 @@ docker build -t pegelsync .
 docker run --rm pegelsync
 ```
 
+### Backend Deployment (AWS Lambda)
+The Lambda is **multi-file**, so it must be deployed as a ZIP (not pasted inline):
+
+1. Build the artifact (already provided as `lambda_deploy.zip`, or regenerate):
+   ```bash
+   zip -q lambda_deploy.zip lambda_function.py forecast.py providers.py
+   ```
+2. AWS Console → Lambda → **Code** → **Upload from .zip file** → select `lambda_deploy.zip`.
+3. **Configuration → General configuration**: set **Memory = 512 MB** (CPU scales with memory; 128 MB starves the threaded fetch loop). Handler stays `lambda_function.lambda_handler`.
+4. **Configuration → Environment variables**:
+   - `ALERT_BUCKET_NAME` = your S3 bucket (e.g. `aryan-hydro-alerts-882611-2026`).
+   - `PERF_DIAG` = `1` (optional) to surface per-fetch timings in the Test response while tuning.
+
 ### Frontend Preview
 ```bash
-# Serve the dashboard locally
-cd frontend-dashboard
-python3 -m http.server 8080
-# Open http://localhost:8080
+# v1
+cd frontend-dashboard && python3 -m http.server 8080
+# v2
+cd frontend-v2 && npm install && npm run dev
 ```
 
-### Production Deployment
-- **Backend**: Deploy `lambda_function.py` to AWS Lambda via the console.
-- **Frontend**: The `frontend-dashboard/` directory is deployed to the `gh-pages` branch and served via GitHub Pages.
+### Frontend Deployment
+The `frontend-dashboard/` (and `frontend-v2/` output) are deployed to the `gh-pages` branch and served via GitHub Pages.
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | **Cloud Infrastructure** | AWS Lambda, Amazon S3, AWS EventBridge, AWS IAM |
-| **Backend** | Python 3.14 (Standard Library only) |
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript |
-| **WebGIS** | Leaflet.js 1.9.4 with CartoDB tile layers |
-| **Typography** | Inter (UI) + JetBrains Mono (data) |
-| **Containerization** | Docker |
-| **Data Source** | PEGELONLINE REST API (v2) |
+| **Backend** | Python 3 (Standard Library only + boto3) |
+| **Forecast** | Local rolling-origin backtest, 90% empirical PIs (stdlib) |
+| **Frontend v1** | HTML5, CSS3, Vanilla JavaScript, Leaflet.js 1.9.4 |
+| **Frontend v2** | React, TypeScript, Next.js (static export), MapLibre GL |
+| **WebGIS** | Leaflet.js (v1) / MapLibre GL (v2) with CartoDB tile layers |
+| **Data Sources** | PEGELONLINE REST API (v2), api.brightsky.dev (precipitation) |
 | **Hosting** | GitHub Pages |
 
 ## 👤 Author

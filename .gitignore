@@ -20,6 +20,10 @@ venv/
 # ── Local live data snapshot (produced by the Lambda, not source) ──
 frontend-dashboard/latest_status.json
 frontend-v2/public/latest_status.json
+latest_status.json
+
+# ── Build / deploy artifacts (generated from committed source) ────
+lambda_deploy.zip
 
 # ── Forecast engine runtime cache (downloaded history, not source) ──
 forecast_cache/
