@@ -45,8 +45,35 @@
   margin: 4px 0;
 }
 
-@media (max-width: 760px) {
-  .kpiStrip { left: 10px; bottom: 10px; padding: 4px 6px; }
-  .kpi { padding: 4px 10px; min-width: 60px; }
-  .kpiValue { font-size: 1rem; }
+@media (max-width: 768px) {
+  .kpiStrip {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    padding: 4px 4px;
+    border-radius: 12px;
+    justify-content: space-between;
+    gap: 0;
+  }
+  .kpi {
+    padding: 2px 4px;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    text-align: center;
+  }
+  .kpiValue {
+    font-size: 0.88rem;
+  }
+  .kpiValueTs {
+    font-size: 0.66rem;
+  }
+  .kpiLabel {
+    font-size: 0.52rem;
+    margin-top: 1px;
+    letter-spacing: 0.04em;
+  }
+  .kpiDivider {
+    margin: 2px 0;
+  }
 }

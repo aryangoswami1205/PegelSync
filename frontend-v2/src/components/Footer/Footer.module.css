@@ -1,5 +1,6 @@
 .appFooter {
-  height: var(--footer-h);
+  min-height: var(--footer-h);
+  padding: 4px 16px max(4px, var(--safe-bottom));
   display: flex;
   align-items: center;
   justify-content: center;

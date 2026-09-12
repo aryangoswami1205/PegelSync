@@ -12,6 +12,7 @@ export interface Station {
   precip_next_24h_mm: number;
   precip_next_48h_mm: number;
   precip_condition: "heavy" | "moderate" | "light" | "dry";
+  delta_24h_m?: number | null;
   measurement_timestamp: string | null;
   // ── Phase 5: forecast (level in metres + 90% prediction interval) ──
   forecast_ok: boolean;
@@ -32,5 +33,6 @@ export interface Station {
 
 export interface SyncPayload {
   generated_at: string;
+  stations_checked?: number;
   stations: Station[];
 }

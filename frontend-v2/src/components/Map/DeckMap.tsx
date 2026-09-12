@@ -5,11 +5,12 @@ import MapGL, {
   Marker,
   Popup,
   NavigationControl,
+  AttributionControl,
   MapRef,
 } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import { useTheme } from "../ThemeProvider";
-import { TILE_URLS } from "@/lib/constants";
+import { MAP_STYLES, MAP_ATTRIBUTION } from "@/lib/constants";
 import { Station, SyncPayload } from "@/types";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./Map.module.css";
@@ -29,18 +30,6 @@ const INITIAL_VIEW_STATE = {
   zoom: 5.4,
 };
 
-function makeStyle(tileUrl: string) {
-  return {
-    version: 8 as const,
-    sources: {
-      carto: { type: "raster" as const, tiles: [tileUrl], tileSize: 256 },
-    },
-    layers: [
-      { id: "carto-tiles", type: "raster" as const, source: "carto", minzoom: 0, maxzoom: 19 },
-    ],
-  };
-}
-
 export default function StationMap({
   data,
   activeStationId,
@@ -50,12 +39,9 @@ export default function StationMap({
 }: StationMapProps) {
   const mapRef = useRef<MapRef>(null);
   const { theme } = useTheme();
-  const stations = data?.stations || [];
+  const stations = useMemo(() => data?.stations || [], [data?.stations]);
 
-  const mapStyle = useMemo(
-    () => makeStyle(theme === "dark" ? TILE_URLS.dark : TILE_URLS.light),
-    [theme]
-  );
+  const mapStyle = theme === "dark" ? MAP_STYLES.dark : MAP_STYLES.light;
 
   // Pan to station when activeStationId changes (driven by rail hover/click)
   useEffect(() => {
@@ -100,7 +86,7 @@ export default function StationMap({
       <MapGL
         ref={mapRef}
         initialViewState={INITIAL_VIEW_STATE}
-        mapLib={maplibregl as any}
+        mapLib={maplibregl}
         mapStyle={mapStyle}
         reuseMaps
         style={{ width: "100%", height: "100%" }}
@@ -116,6 +102,8 @@ export default function StationMap({
             </svg>
           </button>
         </div>
+
+        <AttributionControl position="bottom-right" compact={true} customAttribution={MAP_ATTRIBUTION} />
 
         {stations.map((station) => {
           const isActive = activeStationId === station.station_id;

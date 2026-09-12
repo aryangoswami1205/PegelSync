@@ -15,7 +15,10 @@ function useCountUp(value: number | null, duration = 600) {
   const [display, setDisplay] = useState(value ?? 0);
   const fromRef = useRef(value ?? 0);
   useEffect(() => {
-    if (value == null) { setDisplay(0); return; }
+    if (value == null) {
+      const raf = requestAnimationFrame(() => setDisplay(0));
+      return () => cancelAnimationFrame(raf);
+    }
     const from = fromRef.current;
     const start = performance.now();
     let raf = 0;

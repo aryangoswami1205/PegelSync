@@ -15,8 +15,7 @@ interface HeaderProps {
 export default function Header({ status, data }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
 
-  const statusLabel =
-    status === "loading" ? "Syncing" : status === "error" ? "Offline" : status === "demo" ? "Demo" : "Live";
+  const statusLabel = status === "demo" ? "Snapshot" : "Live";
 
   return (
     <header className={styles.appHeader}>
@@ -54,7 +53,7 @@ export default function Header({ status, data }: HeaderProps) {
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            <span>Export</span>
+            <span className={styles.btnUtilityText}>Export</span>
           </button>
 
           <button className={styles.btnIcon} onClick={toggleTheme} aria-label="Toggle light/dark theme">

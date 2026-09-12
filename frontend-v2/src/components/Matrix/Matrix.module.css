@@ -66,7 +66,7 @@
 /* ── Card ─────────────────────────────────────────────────────── */
 .card {
   position: relative;
-  padding: 12px 13px 11px 16px;
+  padding: 12px 14px 11px 20px;
   border-radius: 14px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -193,3 +193,20 @@
   font-family: var(--font-mono);
 }
 .time { font-size: 0.64rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+/* ── Responsive Matrix ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .rail {
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--glass-border);
+  }
+  .railHeader {
+    padding: 12px 14px 10px;
+  }
+  .scroll {
+    overflow-y: visible;
+    padding: 10px;
+    padding-bottom: 24px;
+  }
+}

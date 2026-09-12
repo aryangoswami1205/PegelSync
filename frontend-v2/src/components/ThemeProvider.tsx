@@ -15,16 +15,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("pegelsync-theme") as Theme;
-    if (stored) {
-      setTheme(stored);
-      document.documentElement.setAttribute("data-theme", stored);
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const initialTheme = prefersDark ? "dark" : "light";
-      setTheme(initialTheme);
-      document.documentElement.setAttribute("data-theme", initialTheme);
-    }
+    const stored = localStorage.getItem("pegelsync-theme") as Theme | null;
+    const initialTheme: Theme =
+      stored === "light" || stored === "dark"
+        ? stored
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+
+    document.documentElement.setAttribute("data-theme", initialTheme);
+    const raf = requestAnimationFrame(() => setTheme(initialTheme));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const toggleTheme = () => {

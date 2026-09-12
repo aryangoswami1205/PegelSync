@@ -14,7 +14,6 @@ export default function Home() {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
 
   const stations = data?.stations || [];
-  const loading = status === "loading" && !data;
   const selectedStation = stations.find((s) => s.station_id === selectedStationId) || null;
 
   return (
@@ -30,7 +29,7 @@ export default function Home() {
         />
         <TelemetryMatrix
           stations={stations}
-          loading={loading}
+          loading={false}
           activeStationId={activeStationId}
           selectedStationId={selectedStationId}
           onStationHover={setActiveStationId}

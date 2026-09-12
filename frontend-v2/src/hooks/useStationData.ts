@@ -1,46 +1,67 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SyncPayload } from "@/types";
-import { S3_STATUS_URL, LOCAL_STATUS_URL, REFRESH_INTERVAL_MS } from "@/lib/constants";
+import { S3_STATUS_URL, REFRESH_INTERVAL_MS } from "@/lib/constants";
+import { DEFAULT_STATUS } from "@/lib/defaultStatus";
 
-export type ConnectionStatus = "loading" | "live" | "demo" | "error";
+export type ConnectionStatus = "live" | "demo";
 
-async function tryFetch(url: string): Promise<SyncPayload> {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return (await response.json()) as SyncPayload;
+async function fetchLive(): Promise<SyncPayload> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(S3_STATUS_URL, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) as SyncPayload;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function useStationData() {
-  const [data, setData] = useState<SyncPayload | null>(null);
-  const [status, setStatus] = useState<ConnectionStatus>("loading");
+  // Render immediately from the embedded snapshot so the dashboard always
+  // shows data — even offline, on restricted networks, or before the live
+  // feed resolves. The live S3 feed is layered on top when reachable.
+  const [data, setData] = useState<SyncPayload>(DEFAULT_STATUS);
+  const [status, setStatus] = useState<ConnectionStatus>("demo");
 
-  const fetchData = async () => {
-    setStatus("loading");
+  const refresh = useCallback(async () => {
     try {
-      // Primary: live S3 feed.
-      const json = await tryFetch(S3_STATUS_URL);
+      const json = await fetchLive();
       setData(json);
       setStatus("live");
     } catch {
-      try {
-        // Fallback: bundled sample so the dashboard always renders (dev / offline).
-        const sample = await tryFetch(LOCAL_STATUS_URL);
-        setData(sample);
-        setStatus("demo");
-      } catch (err) {
-        console.error("[PegelSync] Fetch failed:", err);
-        setStatus("error");
-      }
+      setData(DEFAULT_STATUS);
+      setStatus("demo");
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
   }, []);
 
-  return { data, status, refresh: fetchData };
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const json = await fetchLive();
+        if (active) {
+          setData(json);
+          setStatus("live");
+        }
+      } catch {
+        if (active) {
+          setData(DEFAULT_STATUS);
+          setStatus("demo");
+        }
+      }
+    }
+
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  return { data, status, refresh };
 }

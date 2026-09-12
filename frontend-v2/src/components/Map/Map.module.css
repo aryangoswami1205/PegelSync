@@ -10,18 +10,57 @@
   border-radius: 0;
 }
 
+/* ── MapLibre Controls ───────────────────────────────────────── */
+.mapPane :global(.maplibregl-ctrl-top-left) {
+  top: 14px;
+  left: 14px;
+}
+.mapPane :global(.maplibregl-ctrl-group) {
+  background: var(--bg-surface);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 11px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin: 0;
+}
+.mapPane :global(.maplibregl-ctrl-group button) {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.mapPane :global(.maplibregl-ctrl-group button:last-child) {
+  border-bottom: none;
+}
+.mapPane :global(.maplibregl-ctrl-group button:hover) {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.mapPane :global(.maplibregl-ctrl-icon) {
+  opacity: 0.85;
+}
+:global([data-theme="dark"]) .mapPane :global(.maplibregl-ctrl-icon) {
+  filter: invert(1);
+}
+
 /* ── Reset view control ──────────────────────────────────────── */
 .resetControl {
   position: absolute;
-  top: 76px;
+  top: 94px;
   left: 14px;
   z-index: 3;
 }
 .resetButton {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 11px;
   color: var(--text-secondary);
   background: var(--bg-surface);
@@ -29,9 +68,30 @@
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
   box-shadow: var(--shadow-md);
-  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
-.resetButton:hover { color: var(--text-primary); transform: translateY(-1px); }
+.resetButton:hover { color: var(--text-primary); background: var(--bg-elevated); transform: translateY(-1px); }
+
+/* ── Attribution control ─────────────────────────────────────── */
+.mapPane :global(.maplibregl-ctrl-bottom-right) {
+  bottom: 8px;
+  right: 8px;
+  z-index: 2;
+}
+.mapPane :global(.maplibregl-ctrl-attrib) {
+  background: var(--bg-surface) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  margin: 0;
+}
+.mapPane :global(.maplibregl-ctrl-attrib a) {
+  color: var(--text-secondary);
+}
 
 /* ── Station nodes ───────────────────────────────────────────── */
 .nodeBtn {

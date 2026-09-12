@@ -1,7 +1,7 @@
 .appHeader {
   position: relative;
   z-index: 5;
-  padding: 12px 16px 0;
+  padding: max(10px, var(--safe-top)) 16px 10px;
   pointer-events: none;
 }
 
@@ -136,4 +136,58 @@
   color: var(--text-primary);
   border-color: rgba(56, 189, 248, 0.5);
   transform: translateY(-1px) rotate(-12deg);
+}
+
+/* ── Responsive Header ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .appHeader {
+    padding: max(8px, var(--safe-top)) 12px 8px;
+  }
+  .headerBar {
+    padding: 0 10px 0 12px;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brandIcon {
+    width: 32px;
+    height: 32px;
+  }
+  .brandName {
+    font-size: 1rem;
+  }
+  .headerControls {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 600px) {
+  .brandSub {
+    display: none;
+  }
+}
+
+@media (max-width: 440px) {
+  .btnUtilityText {
+    display: none;
+  }
+  .btnUtility {
+    width: 30px;
+    padding: 0;
+    justify-content: center;
+  }
+  .sysStatus {
+    padding: 0 8px;
+    gap: 5px;
+    font-size: 0.68rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .sysLabel {
+    display: none;
+  }
+  .sysStatus {
+    padding: 0 6px;
+  }
 }
