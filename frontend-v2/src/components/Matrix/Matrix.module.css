@@ -15,19 +15,21 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 16px 18px 12px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--border);
   flex: none;
 }
-.railTitle {
-  font-size: 0.82rem;
+
+.headerTitle {
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-primary);
 }
-.railCount {
-  font-size: 0.68rem;
+
+.headerCount {
+  font-size: 0.66rem;
   font-weight: 600;
   color: var(--text-muted);
   font-family: var(--font-mono);
@@ -37,10 +39,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  overscroll-behavior: contain;
 }
 
 .loading {
@@ -48,153 +47,224 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   height: 100%;
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 500;
 }
+
 .spinner {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  border: 2.5px solid var(--border);
+  border: 2px solid var(--border);
   border-top-color: var(--accent-primary);
   animation: spin 0.8s linear infinite;
 }
 
-/* ── Card ─────────────────────────────────────────────────────── */
-.card {
-  position: relative;
-  padding: 12px 14px 11px 20px;
-  border-radius: 14px;
+/* ── Table Structure ─────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.78rem;
+}
+
+.thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    opacity var(--dur) var(--ease-out);
-  animation: float-in var(--dur) var(--ease-out) both;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
-.card:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.45); }
-.cardActive { background: var(--row-highlight); border-color: rgba(56, 189, 248, 0.55); }
-.cardSelected {
-  border-color: var(--accent-primary);
-  box-shadow: var(--shadow-glow);
-}
-.hasActive .card:not(.cardActive):not(.cardSelected) { opacity: var(--row-dimmed-opacity); }
 
-.pip {
-  position: absolute;
-  left: 6px;
-  top: 14px;
-  width: 4px;
-  height: calc(100% - 28px);
-  border-radius: 4px;
-}
-.pip--safe { background: var(--status-safe); box-shadow: 0 0 8px var(--status-safe); }
-.pip--alert { background: var(--status-alert); box-shadow: 0 0 8px var(--status-alert); }
-.pip--error { background: var(--status-warn); box-shadow: 0 0 8px var(--status-warn); }
-
-.cardTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.identity { min-width: 0; }
-.name {
-  font-size: 0.92rem;
+.thead th {
+  padding: 9px 8px;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Column Widths */
+.thStatus, .tdStatus { width: 24px; text-align: center; padding-left: 10px; padding-right: 4px; }
+.thStation, .tdStation { width: 27%; }
+.thLevel, .tdLevel { width: 17%; }
+.thTrend, .tdTrend { width: 10%; text-align: center; }
+.thForecast, .tdForecast { width: 18%; }
+.thGauge, .tdGauge { width: 18%; }
+.thPrecip, .tdPrecip { width: 14%; text-align: right; padding-right: 12px; }
+
+/* Rows */
+.row {
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), opacity var(--dur) var(--ease-out);
+}
+
+.row:hover,
+.rowActive {
+  background: var(--row-highlight);
+}
+
+.rowSelected {
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: inset 3px 0 0 var(--accent-primary);
+}
+
+.hasActive .row:not(.rowActive):not(.rowSelected) {
+  opacity: var(--row-dimmed-opacity);
+}
+
+.tbody td {
+  padding: 8px 8px;
+  vertical-align: middle;
+}
+
+/* Status Dot */
+.statusDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.statusDot--safe {
+  background: var(--status-safe);
+  box-shadow: 0 0 6px rgba(45, 212, 191, 0.5);
+}
+.statusDot--alert {
+  background: var(--status-alert);
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.6);
+  animation: pulse-soft 1.8s ease-in-out infinite;
+}
+.statusDot--error {
+  background: var(--status-warn);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.5);
+}
+
+/* Station Column */
+.stationName {
+  font-size: 0.84rem;
+  font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
-.river {
-  font-size: 0.66rem;
+.stationMeta {
+  font-size: 0.64rem;
   color: var(--text-muted);
   font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 1px;
 }
-.trend { display: inline-flex; color: var(--text-secondary); flex: none; padding-top: 2px; }
-.trend.rising { color: var(--status-alert); }
-.trend.falling { color: var(--accent-primary); }
 
-.cardMid {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-top: 10px;
-  gap: 8px;
-}
-.level { display: flex; align-items: baseline; gap: 3px; }
-.levelVal {
+/* Water Level */
+.levelNum {
   font-family: var(--font-mono);
-  font-size: 1.55rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
-.card--alert .levelVal { color: var(--status-alert); }
-.levelUnit { font-size: 0.74rem; color: var(--text-muted); font-weight: 600; }
-
-.cardRight { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.precip {
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--status-safe-bg);
-  color: var(--status-safe);
+.level--alert {
+  color: var(--status-alert);
 }
-.precip--moderate { background: var(--status-warn-bg); color: var(--status-warn); }
-.precip--heavy { background: var(--status-alert-bg); color: var(--status-alert); }
-.precipNone { font-size: 0.8rem; color: var(--text-muted); }
-.thr { font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono); }
+.levelUnit {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 2px;
+}
 
-.gauge { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
+/* Trend */
+.trendIcon {
+  display: inline-block;
+  vertical-align: middle;
+}
+.trendRising { color: var(--status-alert); }
+.trendFalling { color: var(--accent-primary); }
+.trendStable { color: var(--text-muted); }
+
+/* Forecast */
+.forecastNum {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  font-variant-numeric: tabular-nums;
+}
+.forecastMuted {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Gauge / Capacity */
+.gaugeContainer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .gaugeTrack {
   flex: 1;
-  height: 6px;
-  border-radius: 999px;
+  height: 4px;
+  border-radius: 99px;
   background: var(--gauge-track);
   overflow: hidden;
 }
 .gaugeFill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 99px;
   background: var(--accent-grad);
   transition: width var(--dur-slow) var(--ease-out);
 }
-.gaugeFillAlert { background: linear-gradient(90deg, #fb7185, #e11d48); }
+.gaugeFillAlert {
+  background: linear-gradient(90deg, #fb7185, #e11d48);
+}
 .gaugePct {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 26px;
+  text-align: right;
+}
+
+/* Precipitation */
+.precipVal {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-secondary);
-  min-width: 34px;
-  text-align: right;
+}
+.precip--moderate { color: var(--status-warn); }
+.precip--heavy { color: var(--status-alert); }
+.precipNone { font-size: 0.75rem; color: var(--text-muted); }
+
+/* ── Responsive Breakpoints ───────────────────────────────────── */
+@media (max-width: 1024px) {
+  .thPrecip, .tdPrecip {
+    display: none;
+  }
+  .thStation, .tdStation { width: 32%; }
+  .thLevel, .tdLevel { width: 22%; }
+  .thTrend, .tdTrend { width: 12%; }
+  .thForecast, .tdForecast { width: 20%; }
+  .thGauge, .tdGauge { width: 22%; }
 }
 
-.cardFoot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
-}
-.fcBadge {
-  font-size: 0.66rem;
-  font-weight: 600;
-  color: var(--accent-primary);
-  font-family: var(--font-mono);
-}
-.time { font-size: 0.64rem; color: var(--text-muted); font-family: var(--font-mono); }
-
-/* ── Responsive Matrix ─────────────────────────────────────────── */
 @media (max-width: 768px) {
   .rail {
     height: auto;
@@ -202,11 +272,30 @@
     border-top: 1px solid var(--glass-border);
   }
   .railHeader {
-    padding: 12px 14px 10px;
+    padding: 10px 14px 8px;
   }
   .scroll {
     overflow-y: visible;
-    padding: 10px;
-    padding-bottom: 24px;
+  }
+  .thForecast, .tdForecast,
+  .thPrecip, .tdPrecip {
+    display: none;
+  }
+  .thStatus, .tdStatus { width: 22px; padding-left: 8px; }
+  .thStation, .tdStation { width: 38%; }
+  .thLevel, .tdLevel { width: 24%; }
+  .thTrend, .tdTrend { width: 12%; }
+  .thGauge, .tdGauge { width: 26%; padding-right: 10px; }
+  .table {
+    font-size: 0.75rem;
+  }
+  .row {
+    height: 44px;
+  }
+  .levelNum {
+    font-size: 0.88rem;
+  }
+  .stationName {
+    font-size: 0.8rem;
   }
 }
