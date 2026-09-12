@@ -126,7 +126,7 @@ The `frontend-v2/` static export (`out/`) is deployed to the `gh-pages` branch a
 | **Backend** | Python 3 (Standard Library only + boto3) |
 | **Forecast** | Local rolling-origin backtest, 90% empirical PIs (stdlib) |
 | **Frontend** | React, TypeScript, Next.js (static export), MapLibre GL |
-| **WebGIS** | MapLibre GL with CartoDB tile layers |
+| **WebGIS** | MapLibre GL JS with OpenFreeMap vector styles (Positron & Dark) |
 | **Data Sources** | PEGELONLINE REST API (v2), api.brightsky.dev (precipitation) |
 | **Hosting** | GitHub Pages |
 
